@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- Spring Boot como parent: traz dependency management, plugin de build e Java 21 -->
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.4.1</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>br.com.dsid</groupId>
+    <artifactId>instituicao</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <properties>
+        <java.version>21</java.version>
+        <ratis.version>3.2.2</ratis.version>
+    </properties>
+
+    <dependencies>
+        <!-- Web REST (embutido: Tomcat + Jackson + validação básica) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- BCrypt para hash de senha (sem o starter-security inteiro: só o crypto) -->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-crypto</artifactId>
+        </dependency>
+
+        <!-- Apache Ratis: consenso Raft para replicar a criação de contas -->
+        <!-- ratis-server: motor do Raft (log, eleição, replicação, StateMachine) -->
+        <dependency>
+            <groupId>org.apache.ratis</groupId>
+            <artifactId>ratis-server</artifactId>
+            <version>${ratis.version}</version>
+        </dependency>
+        <!-- ratis-client: submete os comandos de escrita ao grupo Raft -->
+        <dependency>
+            <groupId>org.apache.ratis</groupId>
+            <artifactId>ratis-client</artifactId>
+            <version>${ratis.version}</version>
+        </dependency>
+        <!-- ratis-grpc: transporte de rede entre os nós do cluster -->
+        <dependency>
+            <groupId>org.apache.ratis</groupId>
+            <artifactId>ratis-grpc</artifactId>
+            <version>${ratis.version}</version>
+        </dependency>
+        <!-- ratis-metrics-default: implementação de métricas carregada em runtime
+             (o ratis-server só traz a API; sem isto: ClassNotFound MetricRegistriesImpl) -->
+        <dependency>
+            <groupId>org.apache.ratis</groupId>
+            <artifactId>ratis-metrics-default</artifactId>
+            <version>${ratis.version}</version>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- Testes (JUnit 5 já incluso no starter-test) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- spring-boot:run e empacotamento executável -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>
