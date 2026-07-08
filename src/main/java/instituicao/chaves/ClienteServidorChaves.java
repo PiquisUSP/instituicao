@@ -3,6 +3,8 @@ package instituicao.chaves;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -22,6 +24,8 @@ import rmi.RegistroChaveInterface;
 @Component
 public class ClienteServidorChaves {
 
+    private static final Logger log = LoggerFactory.getLogger(ClienteServidorChaves.class);
+
     private final String host;
     private final int port;
 
@@ -30,6 +34,7 @@ public class ClienteServidorChaves {
             @Value("${chaves.port:1099}") int port) {
         this.host = host;
         this.port = port;
+        log.info("[RMI] cliente do servidor-de-chaves configurado para {}:{}", host, port);
     }
 
     /**
@@ -39,30 +44,48 @@ public class ClienteServidorChaves {
      * @throws ServidorChavesIndisponivel se não conseguir falar com o servidor.
      */
     public int registrar(TipoChave tipo, String idInstituicao, String numeroConta, String valor) {
+        log.info("[RMI] -> {}:{} lookup 'RegistroChave'; registrarChave{} (numeroConta={})",
+                host, port, tipoSufixo(tipo), numeroConta);
         try {
             RegistroChaveInterface registro = (RegistroChaveInterface) registry().lookup("RegistroChave");
-            return switch (tipo) {
+            int status = switch (tipo) {
                 case CPF -> registro.registrarChaveCPF(idInstituicao, numeroConta, valor);
                 case TELEFONE -> registro.registrarChaveTelefone(idInstituicao, numeroConta, valor);
                 case EMAIL -> registro.registrarChaveEmail(idInstituicao, numeroConta, valor);
                 case ALEATORIA -> registro.registrarChaveAleatoria(idInstituicao, numeroConta);
             };
+            log.info("[RMI] <- resposta do servidor-de-chaves: status={}", status);
+            return status;
         } catch (Exception e) {
+            log.error("[RMI] falha ao falar com {}:{} ({})", host, port, e.toString());
             throw new ServidorChavesIndisponivel(host, port, e);
         }
     }
 
     /** true se a chave já existe no servidor de chaves. */
     public boolean existe(String valor) {
+        log.info("[RMI] -> {}:{} lookup 'ConsultaChave'; existeChave(valor={})", host, port, valor);
         try {
             ConsultaChaveInterface consulta = (ConsultaChaveInterface) registry().lookup("ConsultaChave");
-            return consulta.existeChave(valor);
+            boolean existe = consulta.existeChave(valor);
+            log.info("[RMI] <- existeChave = {}", existe);
+            return existe;
         } catch (Exception e) {
+            log.error("[RMI] falha ao falar com {}:{} ({})", host, port, e.toString());
             throw new ServidorChavesIndisponivel(host, port, e);
         }
     }
 
     private Registry registry() throws java.rmi.RemoteException {
         return LocateRegistry.getRegistry(host, port);
+    }
+
+    private static String tipoSufixo(TipoChave tipo) {
+        return switch (tipo) {
+            case CPF -> "CPF";
+            case TELEFONE -> "Telefone";
+            case EMAIL -> "Email";
+            case ALEATORIA -> "Aleatoria";
+        };
     }
 }

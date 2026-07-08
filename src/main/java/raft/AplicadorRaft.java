@@ -27,19 +27,21 @@ public class AplicadorRaft implements AplicadorDeContas {
     @Override
     public int registrar(ComandoCriarConta comando) {
         try {
+            LOG.info("[RAFT] submetendo {} (send -> replica e aguarda commit da maioria)...", comando);
             // send() = escrita: vira entrada no log, é replicada e commitada
             // pela maioria antes de retornar.
             RaftClientReply reply = client.io().send(Message.valueOf(comando.serializar()));
 
             if (reply.isSuccess()) {
                 String resposta = reply.getMessage().getContent().toStringUtf8().trim();
+                LOG.info("[RAFT] commit confirmado pela maioria; status da StateMachine={}", resposta);
                 return Integer.parseInt(resposta);
             }
 
-            LOG.warn("Raft não confirmou o comando {}: {}", comando, reply);
+            LOG.warn("[RAFT] Raft não confirmou o comando {}: {}", comando, reply);
             return 500;
         } catch (Exception e) {
-            LOG.error("Falha ao replicar comando {} via Raft", comando, e);
+            LOG.error("[RAFT] Falha ao replicar comando {} via Raft", comando, e);
             return 500;
         }
     }

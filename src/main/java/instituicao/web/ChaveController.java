@@ -3,6 +3,8 @@ package instituicao.web;
 import java.util.Locale;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -33,6 +35,8 @@ import instituicao.web.dto.RegistrarChaveRequest;
 @RestController
 public class ChaveController {
 
+    private static final Logger log = LoggerFactory.getLogger(ChaveController.class);
+
     private final BancoDeDados banco;
     private final SessaoService sessoes;
     private final ClienteServidorChaves chaves;
@@ -51,35 +55,54 @@ public class ChaveController {
     public ResponseEntity<?> registrar(@PathVariable String numero,
                                        @RequestHeader(value = "Authorization", required = false) String authorization,
                                        @RequestBody RegistrarChaveRequest req) {
+        log.info("[CHAVE] POST /contas/{}/chaves tipo={}", numero, req == null ? null : req.tipo());
+
         if (!sessoes.autorizadoHeader(authorization, numero)) {
+            log.warn("[CHAVE] -> 401 acesso negado à conta {}", numero);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(new ErroResponse("Não autenticado para esta conta"));
         }
         if (banco.recuperarConta(numero) == null) {
+            log.warn("[CHAVE] -> 404 conta {} inexistente", numero);
             return ResponseEntity.notFound().build();
         }
 
         TipoChave tipo = parseTipo(req == null ? null : req.tipo());
         if (tipo == null) {
+            log.warn("[CHAVE] -> 400 tipo inválido");
             return ResponseEntity.badRequest()
                     .body(new ErroResponse("tipo inválido (use CPF, TELEFONE, EMAIL ou ALEATORIA)"));
         }
         String valor = req.valor();
         if (tipo != TipoChave.ALEATORIA && (valor == null || valor.isBlank())) {
+            log.warn("[CHAVE] -> 400 valor obrigatório para tipo {}", tipo);
             return ResponseEntity.badRequest().body(new ErroResponse("valor é obrigatório para tipo " + tipo));
         }
 
         try {
+            log.info("[CHAVE] chamando servidor-de-chaves via RMI (tipo={}, numeroConta={}, idInstituicao={})...",
+                    tipo, numero, idInstituicao);
             int status = chaves.registrar(tipo, idInstituicao, numero, valor);
+            log.info("[CHAVE] servidor-de-chaves respondeu status={}", status);
             return switch (status) {
-                case 200 -> ResponseEntity.status(HttpStatus.CREATED)
-                        .body(new ChaveResponse(tipo.name(), valor, numero));
-                case 403 -> ResponseEntity.status(HttpStatus.CONFLICT)
-                        .body(new ErroResponse("Chave já registrada no servidor de chaves"));
-                default -> ResponseEntity.status(HttpStatus.BAD_GATEWAY)
-                        .body(new ErroResponse("Servidor de chaves recusou o registro (status " + status + ")"));
+                case 200 -> {
+                    log.info("[CHAVE] -> 201 chave registrada (conta {})", numero);
+                    yield ResponseEntity.status(HttpStatus.CREATED)
+                            .body(new ChaveResponse(tipo.name(), valor, numero));
+                }
+                case 403 -> {
+                    log.warn("[CHAVE] -> 409 chave já registrada");
+                    yield ResponseEntity.status(HttpStatus.CONFLICT)
+                            .body(new ErroResponse("Chave já registrada no servidor de chaves"));
+                }
+                default -> {
+                    log.warn("[CHAVE] -> 502 servidor de chaves recusou (status {})", status);
+                    yield ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                            .body(new ErroResponse("Servidor de chaves recusou o registro (status " + status + ")"));
+                }
             };
         } catch (ServidorChavesIndisponivel e) {
+            log.error("[CHAVE] -> 502 servidor de chaves indisponível: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
                     .body(new ErroResponse("Servidor de chaves indisponível"));
         }
@@ -88,9 +111,13 @@ public class ChaveController {
     /** Consulta se uma chave existe no servidor de chaves (público). */
     @GetMapping("/chaves/{valor}/existe")
     public ResponseEntity<?> existe(@PathVariable String valor) {
+        log.info("[CHAVE] GET /chaves/{}/existe", valor);
         try {
-            return ResponseEntity.ok(Map.of("valor", valor, "existe", chaves.existe(valor)));
+            boolean existe = chaves.existe(valor);
+            log.info("[CHAVE] existe({}) = {}", valor, existe);
+            return ResponseEntity.ok(Map.of("valor", valor, "existe", existe));
         } catch (ServidorChavesIndisponivel e) {
+            log.error("[CHAVE] -> 502 servidor de chaves indisponível: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
                     .body(new ErroResponse("Servidor de chaves indisponível"));
         }

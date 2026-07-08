@@ -2,6 +2,8 @@ package instituicao.config;
 
 import java.io.IOException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
@@ -21,11 +23,15 @@ import raft.NoInstituicao;
 @ConditionalOnProperty(name = "instituicao.raft.enabled", havingValue = "true", matchIfMissing = true)
 public class RaftModeConfig {
 
+    private static final Logger log = LoggerFactory.getLogger(RaftModeConfig.class);
+
     /** O nó é fechado no shutdown do Spring (fecha RaftClient + RaftServer). */
     @Bean(destroyMethod = "close")
     public NoInstituicao noInstituicao(@Value("${instituicao.node-id:n1}") String nodeId) throws IOException {
+        log.info("[CONFIG] modo RAFT (replicado) — nó={}; iniciando consenso...", nodeId);
         NoInstituicao no = new NoInstituicao(nodeId);
         no.iniciar();
+        log.info("[CONFIG] nó Raft '{}' iniciado (aguarda eleição de líder com maioria dos nós)", nodeId);
         return no;
     }
 

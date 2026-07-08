@@ -4,6 +4,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import estruturas.conta.ContaBancaria;
 import estruturas.db.exceptions.conta.ContaJaRegistrada;
 
@@ -11,11 +14,13 @@ import estruturas.db.exceptions.conta.ContaJaRegistrada;
  * Banco de dados local da instituição: guarda as contas bancárias indexadas pelo
  * <b>número da conta</b> (String), deixando criação e consulta em O(1).
  *
- * <p>É o mesmo objeto usado pela {@code BancoCentralStateMachine} (escritas via
+ * <p>É o mesmo objeto usado pela {@code InstituicaoStateMachine} (escritas via
  * Raft) e pelo controller REST (leituras locais). {@code ConcurrentHashMap}
  * porque o Ratis aplica entradas numa thread e o REST lê em outra.
  */
 public class BancoDeDados {
+
+    private static final Logger LOG = LoggerFactory.getLogger(BancoDeDados.class);
 
     private final ConcurrentHashMap<String, ContaBancaria> contas = new ConcurrentHashMap<>();
 
@@ -33,6 +38,7 @@ public class BancoDeDados {
             throw new ContaJaRegistrada();
         }
         this.contas.put(numero, conta);
+        LOG.info("[DB] conta armazenada numeroConta={} (total de contas={})", numero, this.contas.size());
     }
 
     /** Consulta O(1) pelo número da conta — caminho usado pelas consultas REST. */
