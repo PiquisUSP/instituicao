@@ -1,0 +1,66 @@
+# Cluster de 3 nós da instituição (só este serviço).
+#
+# Para interligar com o servidor-de-chaves, use o compose combinado na raiz
+# (../docker-compose.yml). Aqui, aponte CHAVES_HOST para onde ele estiver
+# acessível (por padrão, um serviço "chaves-n1" numa rede externa "dsid").
+#
+#   docker compose up --build
+#   docker compose down            # volumes preservam os dados
+#   docker compose down -v         # apaga os dados
+#
+# Nós Raft: uniformizamos a porta Raft (RAFT_PORT=7000) e nos achamos pelos
+# nomes de serviço via RAFT_HOST_*.
+
+x-inst-env: &inst-env
+  RAFT_PORT: "7000"
+  RAFT_HOST_N1: inst-n1
+  RAFT_HOST_N2: inst-n2
+  RAFT_HOST_N3: inst-n3
+  # Servidor de chaves (ajuste conforme onde ele roda).
+  CHAVES_HOST: chaves-n1
+  CHAVES_PORT: "1099"
+
+services:
+  inst-n1:
+    build: .
+    image: instituicao
+    command: ["--instituicao.node-id=n1", "--server.port=8080"]
+    environment: *inst-env
+    ports:
+      - "8081:8080"
+    volumes:
+      - inst-n1-data:/app/raft-storage
+    networks: [dsid]
+
+  inst-n2:
+    build: .
+    image: instituicao
+    command: ["--instituicao.node-id=n2", "--server.port=8080"]
+    environment: *inst-env
+    ports:
+      - "8082:8080"
+    volumes:
+      - inst-n2-data:/app/raft-storage
+    networks: [dsid]
+
+  inst-n3:
+    build: .
+    image: instituicao
+    command: ["--instituicao.node-id=n3", "--server.port=8080"]
+    environment: *inst-env
+    ports:
+      - "8083:8080"
+    volumes:
+      - inst-n3-data:/app/raft-storage
+    networks: [dsid]
+
+volumes:
+  inst-n1-data:
+  inst-n2-data:
+  inst-n3-data:
+
+# Rede externa compartilhada com o servidor-de-chaves. Crie uma vez com:
+#   docker network create dsid
+networks:
+  dsid:
+    external: true

@@ -140,20 +140,11 @@ public class ContaController {
 
     /** Retorna 401 se o token não autenticar esta conta; null se estiver ok. */
     private ResponseEntity<?> exigirAutenticacao(String numero, String authorization) {
-        String token = extrairToken(authorization);
-        if (!sessoes.autorizado(token, numero)) {
+        if (!sessoes.autorizadoHeader(authorization, numero)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(new ErroResponse("Não autenticado para esta conta"));
         }
         return null;
-    }
-
-    private static String extrairToken(String authorization) {
-        if (authorization == null || authorization.isBlank()) {
-            return null;
-        }
-        String v = authorization.trim();
-        return v.regionMatches(true, 0, "Bearer ", 0, 7) ? v.substring(7).trim() : v;
     }
 
     private static String gerarNumeroConta() {

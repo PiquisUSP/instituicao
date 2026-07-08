@@ -1,0 +1,12 @@
+# protege o quórum do Raft
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: instituicao-pdb
+  labels:
+    app: instituicao
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: instituicao

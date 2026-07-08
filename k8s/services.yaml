@@ -1,0 +1,41 @@
+# Headless Service — DNS estável por pod (instituicao-0.instituicao-hl, ...).
+# É por esses nomes que os nós Raft se encontram.
+apiVersion: v1
+kind: Service
+metadata:
+  name: instituicao-hl
+  labels:
+    app: instituicao
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true   # DNS resolve durante a subida (antes de "ready")
+  selector:
+    app: instituicao
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+    - name: raft
+      port: 7000
+      targetPort: raft
+---
+# LoadBalancer — expõe o REST para clientes.
+#
+# sessionAffinity: ClientIP é importante aqui: as sessões de login ficam em
+# memória POR NÓ (não são replicadas). Prender o cliente a um pod mantém o login
+# válido entre requisições. Os DADOS das contas, esses sim, são replicados via Raft.
+apiVersion: v1
+kind: Service
+metadata:
+  name: instituicao-http
+  labels:
+    app: instituicao
+spec:
+  type: LoadBalancer
+  sessionAffinity: ClientIP
+  selector:
+    app: instituicao
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

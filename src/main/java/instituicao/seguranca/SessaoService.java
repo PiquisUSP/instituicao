@@ -35,4 +35,18 @@ public class SessaoService {
     public boolean autorizado(String token, String numeroConta) {
         return numeroConta != null && numeroConta.equals(contaDoToken(token));
     }
+
+    /** Igual a {@link #autorizado}, extraindo o token de um header Authorization. */
+    public boolean autorizadoHeader(String authorization, String numeroConta) {
+        return autorizado(extrairToken(authorization), numeroConta);
+    }
+
+    /** Extrai o token de um header {@code Authorization: Bearer <token>} (ou o valor cru). */
+    public static String extrairToken(String authorization) {
+        if (authorization == null || authorization.isBlank()) {
+            return null;
+        }
+        String v = authorization.trim();
+        return v.regionMatches(true, 0, "Bearer ", 0, 7) ? v.substring(7).trim() : v;
+    }
 }

@@ -1,0 +1,81 @@
+# StatefulSet do cluster Raft da instituição.
+#
+# Como no servidor-de-chaves: identidade de rede estável (DNS por pod) + disco
+# próprio. O ordinal do pod vira o id do nó:
+#   instituicao-0 -> n1, instituicao-1 -> n2, instituicao-2 -> n3
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: instituicao
+  labels:
+    app: instituicao
+spec:
+  serviceName: instituicao-hl
+  replicas: 3                     # fixo em 3 (a config conhece n1/n2/n3)
+  podManagementPolicy: Parallel   # sobe os 3 juntos — precisam se ver p/ eleger líder
+  selector:
+    matchLabels:
+      app: instituicao
+  template:
+    metadata:
+      labels:
+        app: instituicao
+    spec:
+      terminationGracePeriodSeconds: 20
+      containers:
+        - name: instituicao
+          image: instituicao:latest
+          imagePullPolicy: IfNotPresent
+          # Deriva o id do nó do ordinal do pod.
+          command: ["sh", "-c"]
+          args:
+            - |
+              ORD="${POD_NAME##*-}"
+              NODE="n$((ORD + 1))"
+              echo "pod=$POD_NAME -> node=$NODE"
+              exec java $JAVA_OPTS -jar app.jar \
+                --instituicao.node-id="$NODE" \
+                --server.port=8080
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            # Porta Raft uniforme em todos os pods.
+            - name: RAFT_PORT
+              value: "7000"
+            # Peers: DNS estável de cada pod pelo headless Service.
+            - name: RAFT_HOST_N1
+              value: instituicao-0.instituicao-hl
+            - name: RAFT_HOST_N2
+              value: instituicao-1.instituicao-hl
+            - name: RAFT_HOST_N3
+              value: instituicao-2.instituicao-hl
+            # Servidor de chaves (PIX) — precisa estar implantado no mesmo namespace.
+            # Fala-se com um pod estável dele por RMI.
+            - name: CHAVES_HOST
+              value: servidor-chaves-0.servidor-chaves-hl
+            - name: CHAVES_PORT
+              value: "1099"
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: raft
+              containerPort: 7000
+          readinessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          volumeMounts:
+            - name: raft-storage
+              mountPath: /app/raft-storage
+  # Um PVC por pod: o log + snapshots do Raft persistem por nó.
+  volumeClaimTemplates:
+    - metadata:
+        name: raft-storage
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi

@@ -1,0 +1,16 @@
+# Saída de build (recompilada dentro da imagem)
+target/
+
+# Dados de runtime do Raft
+raft-storage/
+
+# Metadados que não pertencem à imagem
+.git/
+.gitignore
+.idea/
+*.iml
+README.md
+Dockerfile
+docker-compose.yml
+.dockerignore
+k8s/
