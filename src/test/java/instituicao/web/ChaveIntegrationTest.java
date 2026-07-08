@@ -53,7 +53,7 @@ class ChaveIntegrationTest {
         criar("5002-2");
         String token = login("5002-2");
         ResponseEntity<Map<String, Object>> r =
-                post("/contas/5002-2/chaves", Map.of("tipo", "PIXOTE", "valor", "x"), token);
+                post("/contas/5002-2/chaves", Map.of("tipo", "INVALIDO", "valor", "x"), token);
         assertThat(r.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
 

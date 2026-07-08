@@ -23,7 +23,7 @@ import instituicao.web.dto.ErroResponse;
 import instituicao.web.dto.RegistrarChaveRequest;
 
 /**
- * Ponte com o {@code servidor-de-chaves} (PIX). Registra chaves apontando para
+ * Ponte com o {@code servidor-de-chaves}. Registra chaves apontando para
  * contas desta instituição e consulta existência de chaves.
  *
  * <p>Registrar uma chave exige estar logado na conta (Bearer token). A criação da
@@ -46,7 +46,7 @@ public class ChaveController {
         this.idInstituicao = idInstituicao;
     }
 
-    /** Registra uma chave PIX para a conta (exige login desta conta). */
+    /** Registra uma chave para a conta (exige login desta conta). */
     @PostMapping("/contas/{numero}/chaves")
     public ResponseEntity<?> registrar(@PathVariable String numero,
                                        @RequestHeader(value = "Authorization", required = false) String authorization,

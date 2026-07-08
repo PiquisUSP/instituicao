@@ -87,10 +87,15 @@ src/main/java/
 │   │   ├── LocalModeConfig.java    #   modo local: sem consenso (dev/teste)
 │   │   └── SegurancaConfig.java    #   PasswordEncoder (BCrypt)
 │   ├── seguranca/SessaoService.java#   sessões (token -> conta) em memória
+│   ├── chaves/                     #   cliente RMI do servidor-de-chaves
+│   │   ├── ClienteServidorChaves.java #  registra/consulta chaves via RMI
+│   │   └── TipoChave.java / ServidorChavesIndisponivel.java
 │   └── web/                        #   REST
 │       ├── ContaController.java    #     POST /contas, GET saldo/extrato
 │       ├── AutenticacaoController  #     POST /sessoes (login)
+│       ├── ChaveController.java    #     POST /contas/{n}/chaves, GET /chaves/{v}/existe
 │       └── dto/                    #     records de request/response
+├── rmi/                            # contrato RMI copiado do servidor-de-chaves (interfaces)
 ├── raft/                           # integração com Apache Ratis
 │   ├── NoInstituicao.java          #   bootstrap do nó (RaftServer + RaftClient + banco)
 │   ├── ClusterConfig.java          #   peers, portas, id do grupo e storage
@@ -213,6 +218,28 @@ Respostas de erro têm o formato `{ "erro": "..." }`.
 
 `200` → `{ "numeroConta": "...", "transacoes": [ ... ] }` · `401` sem token válido desta conta.
 
+### Registrar chave — `POST /contas/{numero}/chaves`  *(exige token)*
+
+Registra uma chave no **servidor-de-chaves** apontando para esta conta (ver
+[Integração](#integração-com-o-servidor-de-chaves)).
+
+```jsonc
+{ "tipo": "CPF", "valor": "529.982.247-25" }
+// tipo: CPF | TELEFONE | EMAIL | ALEATORIA (valor dispensado para ALEATORIA)
+```
+
+| Status | Quando |
+|--------|--------|
+| `201 Created` | chave registrada — `{ "tipo": "...", "valor": "...", "numeroConta": "..." }` |
+| `400 Bad Request` | tipo inválido / valor faltando |
+| `401 Unauthorized` | sem token válido desta conta |
+| `409 Conflict` | chave já registrada no servidor de chaves |
+| `502 Bad Gateway` | servidor de chaves indisponível/recusou |
+
+### Consultar existência de chave — `GET /chaves/{valor}/existe`
+
+`200` → `{ "valor": "...", "existe": true|false }` · `502` se o servidor de chaves está fora.
+
 ### Exemplo de fluxo (curl / Git Bash)
 
 ```bash
@@ -229,6 +256,10 @@ TOKEN=$(curl -s -X POST $BASE/sessoes -H 'Content-Type: application/json' \
 # 3) ver saldo e extrato autenticado
 curl -s $BASE/contas/12345-6/saldo   -H "Authorization: Bearer $TOKEN"
 curl -s $BASE/contas/12345-6/extrato -H "Authorization: Bearer $TOKEN"
+
+# 4) registrar uma chave (vai ao servidor-de-chaves por RMI)
+curl -s -X POST $BASE/contas/12345-6/chaves -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' -d '{"tipo":"CPF","valor":"529.982.247-25"}'
 ```
 
 ---
@@ -240,8 +271,78 @@ curl -s $BASE/contas/12345-6/extrato -H "Authorization: Bearer $TOKEN"
 | `instituicao.node-id` | `n1` | id do nó no cluster Raft (`n1`/`n2`/`n3`) |
 | `server.port` | `8081` | porta HTTP |
 | `instituicao.raft.enabled` | `true` | `false` = modo local (sem consenso) |
+| `instituicao.id` | `INST-0001` | identificador desta instituição (usado ao registrar chaves) |
+| `chaves.host` / `chaves.port` | `127.0.0.1` / `1099` | endereço RMI do servidor-de-chaves |
 
 Os profiles `n1`/`n2`/`n3` (`application-<id>.properties`) só ajustam `node-id` e `server.port`.
+Em Docker/K8s, `RAFT_PORT`, `RAFT_HOST_*`, `CHAVES_HOST` e `CHAVES_PORT` (variáveis de
+ambiente) sobrescrevem os padrões.
+
+---
+
+## Integração com o servidor-de-chaves
+
+A instituição é **cliente RMI** do `servidor-de-chaves`. O
+[`ClienteServidorChaves`](src/main/java/instituicao/chaves/ClienteServidorChaves.java) faz o
+lookup no registry RMI (`chaves.host:chaves.port`) e chama o serviço `RegistroChave`.
+
+- **Contrato compartilhado:** as interfaces `rmi.RegistroChaveInterface` /
+  `rmi.ConsultaChaveInterface` (+ `ServiceResult`) são cópias do contrato do outro projeto —
+  o cliente RMI precisa das mesmas classes.
+- **O que é usado:** `registrar*` (retorna `int`) e `existeChave` (retorna `boolean`) — só
+  primitivos, sem DTO compartilhado frágil.
+- **O que NÃO é usado:** `consultarChave`, porque devolveria um `ContaBancaria` no formato do
+  outro projeto (`IdentificadorInstituicao` + `NumeroConta`), incompatível com o `ContaBancaria`
+  desta instituição (mesmo nome, forma diferente → não desserializa).
+- **Desacoplamento:** registrar chave é um passo separado de criar conta. Se o servidor de
+  chaves estiver fora do ar, criar contas continua funcionando; o registro da chave responde `502`.
+
+```
+  Cliente ──REST──▶ instituicao ──RMI──▶ servidor-de-chaves
+                    (contas)              (chave -> conta)
+```
+
+---
+
+## Docker
+
+```bash
+# imagem só desta instituição
+docker build -t instituicao .
+
+# cluster completo (chaves + instituicao) interligado — a partir da RAIZ do workspace
+cd ..            # d:/Projetos/dsid
+docker compose up --build
+```
+
+O [`docker-compose.yml` da raiz](../docker-compose.yml) sobe **os dois clusters** na mesma rede:
+3 nós do `servidor-de-chaves` (RMI 1099-1101) + 3 nós da `instituicao` (HTTP 8081-8083), com
+`CHAVES_HOST=chaves-n1`. Há também um [`docker-compose.yml`](docker-compose.yml) local só da
+instituição (rede externa `dsid`).
+
+---
+
+## Kubernetes
+
+Manifests em [`k8s/`](k8s/), no mesmo modelo do `servidor-de-chaves`: **StatefulSet** (3 nós,
+disco por nó), **headless Service** (DNS por pod, para o Raft), **LoadBalancer** (REST, com
+`sessionAffinity: ClientIP` — as sessões de login são por nó) e **PodDisruptionBudget**.
+
+```bash
+docker build -t instituicao:latest .
+#  minikube: minikube image load instituicao:latest
+
+# O servidor-de-chaves precisa já estar implantado (a instituicao aponta para
+# servidor-chaves-0.servidor-chaves-hl:1099 via CHAVES_HOST/CHAVES_PORT).
+kubectl apply -f k8s/
+
+kubectl get pods -l app=instituicao -w
+```
+
+- **pod → nó:** ordinal vira `n1/n2/n3`; `RAFT_HOST_*` = DNS de cada pod; `RAFT_PORT`/`server.port`
+  uniformes (o Service balanceia).
+- **Acesso ao REST:** `kubectl get svc instituicao-http` → IP do LoadBalancer (em minikube,
+  `minikube tunnel`).
 
 ---
 
@@ -262,5 +363,5 @@ Os profiles `n1`/`n2`/`n3` (`application-<id>.properties`) só ajustam `node-id`
   então **saldo é sempre 0 e o extrato fica vazio**. O caminho natural é criar comandos Raft
   (`ComandoDeposito`/`ComandoTransferencia`) aplicados pela StateMachine, mantendo o mesmo padrão
   determinístico das escritas.
-- **Docker / Kubernetes** — empacotar como o `servidor-de-chaves` (as variáveis `RAFT_HOST_*`,
-  `RAFT_PORT` já são lidas pelo `ClusterConfig`).
+- **Sessões replicadas** — hoje o login é por nó (sticky). Para não depender de afinidade, dá
+  para replicar/expirar tokens (ex.: JWT assinado) ou um store compartilhado.

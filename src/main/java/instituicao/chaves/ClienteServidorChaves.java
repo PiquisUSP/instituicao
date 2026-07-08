@@ -10,7 +10,7 @@ import rmi.ConsultaChaveInterface;
 import rmi.RegistroChaveInterface;
 
 /**
- * Cliente RMI do {@code servidor-de-chaves} (o "PIX"): registra e consulta chaves.
+ * Cliente RMI do {@code servidor-de-chaves}: registra e consulta chaves.
  *
  * <p>Faz o lookup no registry a cada chamada (barato) — assim tolera reinícios do
  * servidor sem guardar stubs velhos. Falhas de conectividade viram

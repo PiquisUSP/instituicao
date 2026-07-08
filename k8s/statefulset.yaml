@@ -51,7 +51,7 @@ spec:
               value: instituicao-1.instituicao-hl
             - name: RAFT_HOST_N3
               value: instituicao-2.instituicao-hl
-            # Servidor de chaves (PIX) — precisa estar implantado no mesmo namespace.
+            # Servidor de chaves — precisa estar implantado no mesmo namespace.
             # Fala-se com um pod estável dele por RMI.
             - name: CHAVES_HOST
               value: servidor-chaves-0.servidor-chaves-hl
