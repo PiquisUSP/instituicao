@@ -30,7 +30,6 @@ import org.slf4j.LoggerFactory;
 
 import estruturas.conta.ContaBancaria;
 import estruturas.db.BancoDeDados;
-import estruturas.db.exceptions.conta.ContaJaRegistrada;
 
 // Máquina de estados replicada. O Ratis garante que todos os nós apliquem as mesmas
 // entradas na mesma ordem; cada entrada commitada vira uma conta no banco. Como a
@@ -87,14 +86,10 @@ public class InstituicaoStateMachine extends BaseStateMachine {
         final String dados = entry.getStateMachineLogEntry().getLogData().toStringUtf8();
 
         int status;
-        ComandoCriarConta comando = null;
+        Comando comando = null;
         try {
-            comando = ComandoCriarConta.desserializar(dados);
-            ContaBancaria conta = comando.reconstruirConta();
-            db.adicionarConta(conta);
-            status = 200;
-        } catch (ContaJaRegistrada e) {
-            status = 403;
+            comando = Comandos.desserializar(dados);
+            status = comando.aplicar(db);
         } catch (Exception e) {
             LOG.error("Erro ao aplicar entrada {}", entry.getIndex(), e);
             status = 500;

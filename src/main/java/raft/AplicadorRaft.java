@@ -19,10 +19,10 @@ public class AplicadorRaft implements AplicadorDeContas {
     }
 
     @Override
-    public int registrar(ComandoCriarConta comando) {
+    public int registrar(Comando comando) {
         try {
             LOG.info("[RAFT] submetendo {} (send -> replica e aguarda commit da maioria)...", comando);
-            RaftClientReply reply = client.io().send(Message.valueOf(comando.serializar()));
+            RaftClientReply reply = client.io().send(Message.valueOf(Comandos.serializar(comando)));
 
             if (reply.isSuccess()) {
                 String resposta = reply.getMessage().getContent().toStringUtf8().trim();
