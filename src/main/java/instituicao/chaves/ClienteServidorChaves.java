@@ -50,6 +50,20 @@ public class ClienteServidorChaves {
         }
     }
 
+    public int atualizar(TipoChave tipo, String idInstituicao, String numeroConta, String valor) {
+        log.info("[RMI] -> {}:{} lookup 'RegistroChave'; atualizarChave (tipo={}, numeroConta={})",
+                host, port, tipo, numeroConta);
+        try {
+            RegistroChaveInterface registro = (RegistroChaveInterface) registry().lookup("RegistroChave");
+            int status = registro.atualizarChave(tipo.name(), idInstituicao, numeroConta, valor);
+            log.info("[RMI] <- resposta do servidor-de-chaves: status={}", status);
+            return status;
+        } catch (Exception e) {
+            log.error("[RMI] falha ao falar com {}:{} ({})", host, port, e.toString());
+            throw new ServidorChavesIndisponivel(host, port, e);
+        }
+    }
+
     public boolean existe(String valor) {
         log.info("[RMI] -> {}:{} lookup 'ConsultaChave'; existeChave(valor={})", host, port, valor);
         try {

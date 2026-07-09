@@ -236,6 +236,24 @@ Registra uma chave no **servidor-de-chaves** apontando para esta conta (ver
 | `409 Conflict` | chave já registrada no servidor de chaves |
 | `502 Bad Gateway` | servidor de chaves indisponível/recusou |
 
+### Trocar chave de instituição — `PUT /contas/{numero}/chaves`  *(exige token)*
+
+Portabilidade: uma chave **já registrada** (possivelmente apontando para outra
+instituição/conta) passa a apontar para esta conta. Usado quando o `POST` devolve
+`409` e o usuário confirma que quer trazer a chave.
+
+```jsonc
+{ "tipo": "CPF", "valor": "529.982.247-25" }
+// tipo: CPF | TELEFONE | EMAIL (ALEATORIA não se troca)
+```
+
+| Status | Quando |
+|--------|--------|
+| `200 OK` | chave agora aponta para esta conta — `{ "tipo": "...", "valor": "...", "numeroConta": "..." }` |
+| `400 Bad Request` | tipo inválido / valor faltando |
+| `401 Unauthorized` | sem token válido desta conta |
+| `502 Bad Gateway` | servidor de chaves indisponível/recusou |
+
 ### Consultar existência de chave — `GET /chaves/{valor}/existe`
 
 `200` → `{ "valor": "...", "existe": true|false }` · `502` se o servidor de chaves está fora.
