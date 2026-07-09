@@ -27,6 +27,7 @@ import org.springframework.http.ResponseEntity;
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = {
                 "instituicao.raft.enabled=false",
+                "descoberta.enabled=false",
                 "chaves.host=127.0.0.1",
                 "chaves.port=19099" // nada escutando aqui -> falha rápida
         })

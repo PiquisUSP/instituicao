@@ -28,7 +28,7 @@ import org.springframework.http.ResponseEntity;
  */
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-        properties = "instituicao.raft.enabled=false")
+        properties = {"instituicao.raft.enabled=false", "descoberta.enabled=false"})
 class ContaIntegrationTest {
 
     private static final String CPF_VALIDO = "529.982.247-25";
