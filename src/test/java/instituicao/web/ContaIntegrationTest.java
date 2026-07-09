@@ -49,6 +49,7 @@ class ContaIntegrationTest {
         assertThat(r.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(r.getBody()).containsEntry("numeroConta", "1001-1");
         assertThat(r.getBody()).containsEntry("cpf", CPF_VALIDO);
+        assertThat(r.getBody()).containsEntry("nome", "Fulano de Tal");
         // Nunca devolver a senha (nem hash).
         assertThat(r.getBody()).doesNotContainKeys("senha", "senhaHash");
     }
@@ -56,6 +57,16 @@ class ContaIntegrationTest {
     @Test
     void criarConta_semSenha_retorna400() {
         ResponseEntity<Map<String, Object>> r = criar("1002-2", CPF_VALIDO, null);
+        assertThat(r.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void criarConta_semNome_retorna400() {
+        Map<String, String> body = new HashMap<>();
+        body.put("cpf", CPF_VALIDO);
+        body.put("senha", "segredo123");
+        body.put("numeroConta", "1005-5");
+        ResponseEntity<Map<String, Object>> r = post("/contas", body, null);
         assertThat(r.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
@@ -79,6 +90,7 @@ class ContaIntegrationTest {
         Map<String, String> body = new HashMap<>();
         body.put("cpf", CPF_VALIDO);
         body.put("senha", "segredo123");
+        body.put("nome", "Fulano de Tal");
         ResponseEntity<Map<String, Object>> r = post("/contas", body, null);
 
         assertThat(r.getStatusCode()).isEqualTo(HttpStatus.CREATED);
@@ -177,6 +189,7 @@ class ContaIntegrationTest {
         if (cpf != null) body.put("cpf", cpf);
         if (senha != null) body.put("senha", senha);
         if (numero != null) body.put("numeroConta", numero);
+        body.put("nome", "Fulano de Tal");
         return post("/contas", body, null);
     }
 

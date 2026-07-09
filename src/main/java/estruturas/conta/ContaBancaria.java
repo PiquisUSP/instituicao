@@ -12,13 +12,15 @@ public class ContaBancaria implements Serializable {
 
     private NumeroConta numeroConta;
     private CPF cpf;
+    private String nome;
     private Saldo saldo;
     private Extrato extrato;
     private String senhaHash; // hash BCrypt (a senha nunca é guardada em claro)
 
-    public ContaBancaria(String numeroConta, String cpf, String senhaHash) {
+    public ContaBancaria(String numeroConta, String cpf, String nome, String senhaHash) {
         this.numeroConta = new NumeroConta(numeroConta);
         this.cpf = new CPF(cpf);
+        this.nome = nome;
         this.saldo = new Saldo(0L);
         this.extrato = new Extrato();
         this.senhaHash = senhaHash;
@@ -30,6 +32,10 @@ public class ContaBancaria implements Serializable {
 
     public CPF getCpf() {
         return cpf;
+    }
+
+    public String getNome() {
+        return nome;
     }
 
     public Saldo getSaldo() {

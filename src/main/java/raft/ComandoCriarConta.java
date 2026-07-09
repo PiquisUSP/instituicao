@@ -20,16 +20,18 @@ public final class ComandoCriarConta implements Serializable {
 
     private final String numeroConta;
     private final String cpf;
+    private final String nome;
     private final String senhaHash;
 
-    public ComandoCriarConta(String numeroConta, String cpf, String senhaHash) {
+    public ComandoCriarConta(String numeroConta, String cpf, String nome, String senhaHash) {
         this.numeroConta = numeroConta;
         this.cpf = cpf;
+        this.nome = nome;
         this.senhaHash = senhaHash;
     }
 
     public ContaBancaria reconstruirConta() {
-        return new ContaBancaria(numeroConta, cpf, senhaHash);
+        return new ContaBancaria(numeroConta, cpf, nome, senhaHash);
     }
 
     public String getNumeroConta() {
@@ -38,6 +40,10 @@ public final class ComandoCriarConta implements Serializable {
 
     public String getCpf() {
         return cpf;
+    }
+
+    public String getNome() {
+        return nome;
     }
 
     public String getSenhaHash() {

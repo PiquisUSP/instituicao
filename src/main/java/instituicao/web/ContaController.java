@@ -62,6 +62,10 @@ public class ContaController {
             log.warn("[CONTA] -> 400: senha ausente");
             return ResponseEntity.badRequest().body(new ErroResponse("Senha é obrigatória"));
         }
+        if (req.nome() == null || req.nome().isBlank()) {
+            log.warn("[CONTA] -> 400: nome ausente");
+            return ResponseEntity.badRequest().body(new ErroResponse("Nome é obrigatório"));
+        }
 
         // O construtor só preenche o valor se o CPF for válido.
         CPF cpf = new CPF(req.cpf());
@@ -77,13 +81,13 @@ public class ContaController {
         log.info("[CONTA] validado; numeroConta={} ({}); senha hasheada; submetendo escrita...",
                 numero, numeroGerado ? "gerado" : "informado");
 
-        int status = aplicador.registrar(new ComandoCriarConta(numero, cpf.getValor(), senhaHash));
+        int status = aplicador.registrar(new ComandoCriarConta(numero, cpf.getValor(), req.nome().trim(), senhaHash));
 
         return switch (status) {
             case 200 -> {
                 log.info("[CONTA] -> 201 CRIADA numeroConta={}", numero);
                 yield ResponseEntity.status(HttpStatus.CREATED)
-                        .body(new ContaResponse(numero, cpf.getValor()));
+                        .body(new ContaResponse(numero, cpf.getValor(), req.nome().trim()));
             }
             case 403 -> {
                 log.warn("[CONTA] -> 409 já existe numeroConta={}", numero);
@@ -107,7 +111,7 @@ public class ContaController {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.ok(new ContaResponse(
-                conta.getNumeroConta().getValor(), conta.getCpf().getValor()));
+                conta.getNumeroConta().getValor(), conta.getCpf().getValor(), conta.getNome()));
     }
 
     @GetMapping("/{numero}/saldo")
