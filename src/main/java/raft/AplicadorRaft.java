@@ -6,14 +6,8 @@ import org.apache.ratis.protocol.RaftClientReply;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Aplica os comandos submetendo-os ao grupo Raft via {@link RaftClient}.
- *
- * <p>O client descobre o líder sozinho (mesmo que este nó seja um seguidor),
- * envia o comando com {@code send()} — que só retorna depois de a entrada ser
- * replicada para a maioria e commitada — e devolve o status produzido pela
- * StateMachine do líder ao aplicar a transação.
- */
+// Submete o comando ao grupo Raft. O client acha o líder sozinho; o send() só volta
+// depois de replicado e commitado pela maioria, com o status vindo da StateMachine.
 public class AplicadorRaft implements AplicadorDeContas {
 
     private static final Logger LOG = LoggerFactory.getLogger(AplicadorRaft.class);
@@ -28,8 +22,6 @@ public class AplicadorRaft implements AplicadorDeContas {
     public int registrar(ComandoCriarConta comando) {
         try {
             LOG.info("[RAFT] submetendo {} (send -> replica e aguarda commit da maioria)...", comando);
-            // send() = escrita: vira entrada no log, é replicada e commitada
-            // pela maioria antes de retornar.
             RaftClientReply reply = client.io().send(Message.valueOf(comando.serializar()));
 
             if (reply.isSuccess()) {

@@ -17,10 +17,7 @@ import instituicao.web.dto.ErroResponse;
 import instituicao.web.dto.LoginRequest;
 import instituicao.web.dto.LoginResponse;
 
-/**
- * Login. Verifica a senha (BCrypt) contra a conta e, se conferir, abre uma
- * sessão e devolve um token.
- */
+// Login: confere a senha (BCrypt) e, se bater, abre uma sessão e devolve o token.
 @RestController
 @RequestMapping("/sessoes")
 public class AutenticacaoController {
@@ -49,7 +46,7 @@ public class AutenticacaoController {
 
         ContaBancaria conta = banco.recuperarConta(req.numeroConta());
 
-        // Resposta genérica (não revela se a conta existe) contra enumeração.
+        // Resposta genérica para não revelar se a conta existe.
         if (conta == null || conta.getSenhaHash() == null
                 || !encoder.matches(req.senha(), conta.getSenhaHash())) {
             log.warn("[LOGIN] -> 401 credenciais inválidas numeroConta={}", numero);
@@ -62,7 +59,7 @@ public class AutenticacaoController {
         return ResponseEntity.ok(new LoginResponse(token, conta.getNumeroConta().getValor()));
     }
 
-    /** Só os primeiros caracteres do token vão para o log (o resto fica em segredo). */
+    // Só o começo do token vai pro log.
     private static String prefixo(String token) {
         return token != null && token.length() >= 8 ? token.substring(0, 8) : token;
     }

@@ -24,14 +24,9 @@ import instituicao.web.dto.ChaveResponse;
 import instituicao.web.dto.ErroResponse;
 import instituicao.web.dto.RegistrarChaveRequest;
 
-/**
- * Ponte com o {@code servidor-de-chaves}. Registra chaves apontando para
- * contas desta instituição e consulta existência de chaves.
- *
- * <p>Registrar uma chave exige estar logado na conta (Bearer token). A criação da
- * conta e o registro da chave são passos separados de propósito: o servidor de
- * chaves é externo e pode estar fora do ar, e isso não deve impedir criar contas.
- */
+// Ponte com o servidor-de-chaves. Registrar uma chave exige login na conta. É um passo
+// separado da criação da conta de propósito: o servidor de chaves é externo e pode
+// estar fora do ar, e isso não deve impedir criar contas.
 @RestController
 public class ChaveController {
 
@@ -50,7 +45,6 @@ public class ChaveController {
         this.idInstituicao = idInstituicao;
     }
 
-    /** Registra uma chave para a conta (exige login desta conta). */
     @PostMapping("/contas/{numero}/chaves")
     public ResponseEntity<?> registrar(@PathVariable String numero,
                                        @RequestHeader(value = "Authorization", required = false) String authorization,
@@ -108,7 +102,6 @@ public class ChaveController {
         }
     }
 
-    /** Consulta se uma chave existe no servidor de chaves (público). */
     @GetMapping("/chaves/{valor}/existe")
     public ResponseEntity<?> existe(@PathVariable String valor) {
         log.info("[CHAVE] GET /chaves/{}/existe", valor);

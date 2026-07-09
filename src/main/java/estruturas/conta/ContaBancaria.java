@@ -14,9 +14,7 @@ public class ContaBancaria implements Serializable {
     private CPF cpf;
     private Saldo saldo;
     private Extrato extrato;
-    // Hash BCrypt da senha (já hasheada ANTES de entrar no log do Raft, para o
-    // estado ser determinístico em todos os nós). Nunca guarda a senha em claro.
-    private String senhaHash;
+    private String senhaHash; // hash BCrypt (a senha nunca é guardada em claro)
 
     public ContaBancaria(String numeroConta, String cpf, String senhaHash) {
         this.numeroConta = new NumeroConta(numeroConta);

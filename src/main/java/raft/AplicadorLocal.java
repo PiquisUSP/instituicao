@@ -6,12 +6,8 @@ import org.slf4j.LoggerFactory;
 import estruturas.db.BancoDeDados;
 import estruturas.db.exceptions.conta.ContaJaRegistrada;
 
-/**
- * Aplica os comandos direto num {@link BancoDeDados} local, sem consenso.
- *
- * <p>Útil para os testes e para rodar um único processo (modo
- * {@code instituicao.raft.enabled=false}), sem precisar de maioria de nós.
- */
+// Aplica direto no banco em memória, sem consenso. Serve para testes e para o modo
+// de processo único (instituicao.raft.enabled=false).
 public class AplicadorLocal implements AplicadorDeContas {
 
     private static final Logger LOG = LoggerFactory.getLogger(AplicadorLocal.class);

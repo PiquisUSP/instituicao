@@ -1,6 +1,6 @@
 package instituicao.chaves;
 
-/** Lançada quando o servidor de chaves não pôde ser alcançado via RMI. */
+// O servidor de chaves não pôde ser alcançado via RMI.
 public class ServidorChavesIndisponivel extends RuntimeException {
     private static final long serialVersionUID = 1L;
 

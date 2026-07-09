@@ -29,16 +29,8 @@ import instituicao.web.dto.TransacaoResponse;
 import raft.AplicadorDeContas;
 import raft.ComandoCriarConta;
 
-/**
- * API REST de contas.
- *
- * <p>Escritas ({@code POST}) são validadas, a senha é hasheada (BCrypt) e o
- * resultado vira um {@link ComandoCriarConta} determinístico entregue ao
- * {@link AplicadorDeContas} — que replica via Raft ou aplica localmente.
- *
- * <p>Saldo e extrato exigem autenticação: o cliente faz login em {@code /sessoes}
- * e apresenta o token em {@code Authorization: Bearer <token>}.
- */
+// API REST de contas. POST valida, hasheia a senha, monta o comando e entrega ao
+// aplicador (Raft ou local). Saldo e extrato exigem login (Bearer token).
 @RestController
 @RequestMapping("/contas")
 public class ContaController {
@@ -58,7 +50,6 @@ public class ContaController {
         this.sessoes = sessoes;
     }
 
-    /** Cria uma conta. Exige CPF e senha; o número pode ser informado ou gerado. */
     @PostMapping
     public ResponseEntity<?> criar(@RequestBody CriarContaRequest req) {
         log.info("[CONTA] POST /contas recebido (cpf={})", req == null ? null : req.cpf());
@@ -72,19 +63,18 @@ public class ContaController {
             return ResponseEntity.badRequest().body(new ErroResponse("Senha é obrigatória"));
         }
 
-        // Valida o CPF: o construtor só preenche o valor se for válido.
+        // O construtor só preenche o valor se o CPF for válido.
         CPF cpf = new CPF(req.cpf());
         if (cpf.getValor() == null) {
             log.warn("[CONTA] -> 400: CPF inválido ({})", req.cpf());
             return ResponseEntity.badRequest().body(new ErroResponse("CPF inválido: " + req.cpf()));
         }
 
-        // Número e hash da senha são resolvidos AQUI (antes de entrar no log Raft)
-        // para todos os nós aplicarem exatamente os mesmos valores — determinismo.
+        // Número e hash resolvidos aqui, antes do Raft, para todos os nós aplicarem o mesmo.
         boolean numeroGerado = req.numeroConta() == null || req.numeroConta().isBlank();
         String numero = numeroGerado ? gerarNumeroConta() : req.numeroConta().trim();
         String senhaHash = encoder.encode(req.senha());
-        log.info("[CONTA] validado; numeroConta={} ({}); senha hasheada (BCrypt); submetendo escrita...",
+        log.info("[CONTA] validado; numeroConta={} ({}); senha hasheada; submetendo escrita...",
                 numero, numeroGerado ? "gerado" : "informado");
 
         int status = aplicador.registrar(new ComandoCriarConta(numero, cpf.getValor(), senhaHash));
@@ -108,7 +98,7 @@ public class ContaController {
         };
     }
 
-    /** Dados públicos da conta (sem saldo/extrato). */
+    // Dados públicos da conta (sem saldo/extrato).
     @GetMapping("/{numero}")
     public ResponseEntity<?> consultar(@PathVariable String numero) {
         log.info("[CONTA] GET /contas/{}", numero);
@@ -120,7 +110,6 @@ public class ContaController {
                 conta.getNumeroConta().getValor(), conta.getCpf().getValor()));
     }
 
-    /** Saldo da conta (exige login desta conta). */
     @GetMapping("/{numero}/saldo")
     public ResponseEntity<?> saldo(@PathVariable String numero,
                                    @RequestHeader(value = "Authorization", required = false) String authorization) {
@@ -138,7 +127,6 @@ public class ContaController {
         return ResponseEntity.ok(new SaldoResponse(numero, saldo));
     }
 
-    /** Extrato da conta (exige login desta conta). */
     @GetMapping("/{numero}/extrato")
     public ResponseEntity<?> extrato(@PathVariable String numero,
                                      @RequestHeader(value = "Authorization", required = false) String authorization) {
@@ -163,10 +151,10 @@ public class ContaController {
         return ResponseEntity.ok(new ExtratoResponse(numero, transacoes));
     }
 
-    /** Retorna 401 se o token não autenticar esta conta; null se estiver ok. */
+    // 401 se o token não autenticar esta conta; null se ok.
     private ResponseEntity<?> exigirAutenticacao(String numero, String authorization) {
         if (!sessoes.autorizadoHeader(authorization, numero)) {
-            log.warn("[AUTH] -> 401 acesso negado à conta {} (token ausente/ inválido)", numero);
+            log.warn("[AUTH] -> 401 acesso negado à conta {} (token ausente/inválido)", numero);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(new ErroResponse("Não autenticado para esta conta"));
         }

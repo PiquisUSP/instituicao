@@ -13,20 +13,16 @@ import estruturas.db.BancoDeDados;
 import raft.AplicadorDeContas;
 import raft.NoInstituicao;
 
-/**
- * Modo replicado (padrão): sobe um nó Raft e expõe o aplicador (escritas via
- * consenso) e o banco replicado (leituras locais) como beans.
- *
- * <p>Ativo quando {@code instituicao.raft.enabled} é {@code true} ou ausente.
- */
+// Modo replicado (padrão): sobe o nó Raft e expõe o aplicador (escritas via consenso)
+// e o banco replicado (leituras) como beans. Ativo quando instituicao.raft.enabled é
+// true ou ausente.
 @Configuration
 @ConditionalOnProperty(name = "instituicao.raft.enabled", havingValue = "true", matchIfMissing = true)
 public class RaftModeConfig {
 
     private static final Logger log = LoggerFactory.getLogger(RaftModeConfig.class);
 
-    /** O nó é fechado no shutdown do Spring (fecha RaftClient + RaftServer). */
-    @Bean(destroyMethod = "close")
+    @Bean(destroyMethod = "close") // fechado no shutdown do Spring
     public NoInstituicao noInstituicao(@Value("${instituicao.node-id:n1}") String nodeId) throws IOException {
         log.info("[CONFIG] modo RAFT (replicado) — nó={}; iniciando consenso...", nodeId);
         NoInstituicao no = new NoInstituicao(nodeId);

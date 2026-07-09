@@ -32,25 +32,17 @@ import estruturas.conta.ContaBancaria;
 import estruturas.db.BancoDeDados;
 import estruturas.db.exceptions.conta.ContaJaRegistrada;
 
-/**
- * StateMachine do Raft: a "máquina de estados replicada".
- *
- * <p>O Ratis garante que todos os nós apliquem <b>exatamente as mesmas entradas
- * na mesma ordem</b>. Cada entrada commitada vira uma inserção de conta no
- * {@link BancoDeDados}. Como a operação é determinística (mesmo comando + mesmo
- * estado anterior => mesmo resultado), todos os nós convergem para o mesmo banco.
- *
- * <p><b>Persistência:</b> o log do Raft já é gravado em disco pelo Ratis; além
- * dele, {@link #takeSnapshot()} grava periodicamente o estado do banco, e
- * {@link #initialize}/{@link #reinitialize} o recarregam ao subir.
- */
+// Máquina de estados replicada. O Ratis garante que todos os nós apliquem as mesmas
+// entradas na mesma ordem; cada entrada commitada vira uma conta no banco. Como a
+// operação é determinística, os nós convergem para o mesmo estado.
+// Persistência: log do Raft (o Ratis grava) + snapshots do banco (takeSnapshot),
+// recarregados no boot.
 public class InstituicaoStateMachine extends BaseStateMachine {
 
     private static final Logger LOG = LoggerFactory.getLogger(InstituicaoStateMachine.class);
 
     private final SimpleStateMachineStorage storage = new SimpleStateMachineStorage();
 
-    /** Estado replicado: o mesmo tipo de banco usado no modo local. */
     private final BancoDeDados db;
 
     public InstituicaoStateMachine(BancoDeDados db) {
@@ -69,10 +61,6 @@ public class InstituicaoStateMachine extends BaseStateMachine {
         carregarSnapshot(storage.getLatestSnapshot());
     }
 
-    /**
-     * Expõe o storage ao servidor. Sem isto, o Ratis não sabe que existem
-     * snapshots e reproduz o log desde o início ao reiniciar.
-     */
     @Override
     public StateMachineStorage getStateMachineStorage() {
         return storage;
@@ -83,10 +71,6 @@ public class InstituicaoStateMachine extends BaseStateMachine {
         return storage.getLatestSnapshot();
     }
 
-    /**
-     * Coloca o conteúdo da requisição do cliente como dados da entrada de log.
-     * É o que {@link #applyTransaction} vai ler depois de a entrada ser commitada.
-     */
     @Override
     public TransactionContext startTransaction(RaftClientRequest request) throws IOException {
         return TransactionContext.newBuilder()
@@ -96,10 +80,7 @@ public class InstituicaoStateMachine extends BaseStateMachine {
                 .build();
     }
 
-    /**
-     * Aplica uma entrada já commitada ao banco. Executado em <b>todos</b> os nós,
-     * na mesma ordem — é o que mantém as réplicas consistentes.
-     */
+    // Aplica uma entrada já commitada. Roda em todos os nós, na mesma ordem.
     @Override
     public CompletableFuture<Message> applyTransaction(TransactionContext trx) {
         final LogEntryProto entry = trx.getLogEntry();
@@ -119,7 +100,6 @@ public class InstituicaoStateMachine extends BaseStateMachine {
             status = 500;
         }
 
-        // Avança o índice aplicado da StateMachine (usado em snapshots/reinício).
         updateLastAppliedTermIndex(entry.getTerm(), entry.getIndex());
 
         LOG.info("[applyTransaction] index={} {} -> {}", entry.getIndex(), comando, status);
@@ -127,12 +107,7 @@ public class InstituicaoStateMachine extends BaseStateMachine {
         return CompletableFuture.completedFuture(Message.valueOf(Integer.toString(status)));
     }
 
-    /**
-     * Grava o estado atual do banco num arquivo de snapshot, nomeado pelo
-     * (term, index) da última entrada aplicada. Chamado pelo Ratis periodicamente.
-     *
-     * @return o índice até o qual este snapshot cobre o log.
-     */
+    // Grava o estado do banco num snapshot (chamado pelo Ratis de tempos em tempos).
     @Override
     public long takeSnapshot() {
         final TermIndex ultimo = getLastAppliedTermIndex();
@@ -151,7 +126,7 @@ public class InstituicaoStateMachine extends BaseStateMachine {
         return ultimo.getIndex();
     }
 
-    /** Recarrega o estado do banco a partir do snapshot mais recente (se houver). */
+    // Recarrega o banco do snapshot mais recente (se houver).
     @SuppressWarnings("unchecked")
     private long carregarSnapshot(SingleFileSnapshotInfo snapshot) throws IOException {
         if (snapshot == null) {

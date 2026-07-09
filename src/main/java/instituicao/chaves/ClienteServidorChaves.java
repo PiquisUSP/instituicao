@@ -11,16 +11,9 @@ import org.springframework.stereotype.Component;
 import rmi.ConsultaChaveInterface;
 import rmi.RegistroChaveInterface;
 
-/**
- * Cliente RMI do {@code servidor-de-chaves}: registra e consulta chaves.
- *
- * <p>Faz o lookup no registry a cada chamada (barato) — assim tolera reinícios do
- * servidor sem guardar stubs velhos. Falhas de conectividade viram
- * {@link ServidorChavesIndisponivel} para o controller mapear a um 502.
- *
- * <p>Endereço configurável por {@code chaves.host}/{@code chaves.port}
- * (env {@code CHAVES_HOST}/{@code CHAVES_PORT}).
- */
+// Cliente RMI do servidor-de-chaves. Faz o lookup a cada chamada (é barato) para
+// tolerar reinícios do servidor. Falha de conexão vira ServidorChavesIndisponivel, que
+// o controller mapeia para 502. Endereço em chaves.host/chaves.port.
 @Component
 public class ClienteServidorChaves {
 
@@ -37,12 +30,7 @@ public class ClienteServidorChaves {
         log.info("[RMI] cliente do servidor-de-chaves configurado para {}:{}", host, port);
     }
 
-    /**
-     * Registra uma chave no servidor de chaves.
-     *
-     * @return status do servidor: 200 (registrada), 403 (já existe), 500 (recusada).
-     * @throws ServidorChavesIndisponivel se não conseguir falar com o servidor.
-     */
+    // Retorna 200 (registrada), 403 (já existe) ou 500 (recusada).
     public int registrar(TipoChave tipo, String idInstituicao, String numeroConta, String valor) {
         log.info("[RMI] -> {}:{} lookup 'RegistroChave'; registrarChave{} (numeroConta={})",
                 host, port, tipoSufixo(tipo), numeroConta);
@@ -62,7 +50,6 @@ public class ClienteServidorChaves {
         }
     }
 
-    /** true se a chave já existe no servidor de chaves. */
     public boolean existe(String valor) {
         log.info("[RMI] -> {}:{} lookup 'ConsultaChave'; existeChave(valor={})", host, port, valor);
         try {
