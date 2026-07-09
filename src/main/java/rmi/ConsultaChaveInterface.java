@@ -2,6 +2,7 @@ package rmi;
 
 import java.rmi.Remote;
 import java.rmi.RemoteException;
+import java.util.List;
 
 import rmi.services.result.ServiceResult;
 
@@ -19,4 +20,8 @@ public interface ConsultaChaveInterface extends Remote {
     ServiceResult consultarChave(String valor) throws RemoteException;
 
     boolean existeChave(String valor) throws RemoteException;
+
+    List<String> chavesDaConta(String idInstituicao, String numeroConta) throws RemoteException;
+
+    String[] resolverChave(String valor) throws RemoteException;
 }

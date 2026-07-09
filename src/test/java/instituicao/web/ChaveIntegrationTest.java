@@ -88,6 +88,7 @@ class ChaveIntegrationTest {
         Map<String, String> body = new HashMap<>();
         body.put("cpf", CPF_VALIDO);
         body.put("senha", "segredo123");
+        body.put("nome", "Fulano de Tal");
         body.put("numeroConta", numero);
         post("/contas", body, null);
     }

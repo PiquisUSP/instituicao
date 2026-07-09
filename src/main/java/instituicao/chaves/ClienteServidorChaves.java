@@ -2,6 +2,7 @@ package instituicao.chaves;
 
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,6 +72,35 @@ public class ClienteServidorChaves {
             boolean existe = consulta.existeChave(valor);
             log.info("[RMI] <- existeChave = {}", existe);
             return existe;
+        } catch (Exception e) {
+            log.error("[RMI] falha ao falar com {}:{} ({})", host, port, e.toString());
+            throw new ServidorChavesIndisponivel(host, port, e);
+        }
+    }
+
+    // Lista as chaves atreladas a uma conta (reverse-lookup no servidor de chaves).
+    public List<String> chavesDaConta(String idInstituicao, String numeroConta) {
+        log.info("[RMI] -> {}:{} lookup 'ConsultaChave'; chavesDaConta(instituicao={}, conta={})",
+                host, port, idInstituicao, numeroConta);
+        try {
+            ConsultaChaveInterface consulta = (ConsultaChaveInterface) registry().lookup("ConsultaChave");
+            List<String> chaves = consulta.chavesDaConta(idInstituicao, numeroConta);
+            log.info("[RMI] <- chavesDaConta = {}", chaves);
+            return chaves;
+        } catch (Exception e) {
+            log.error("[RMI] falha ao falar com {}:{} ({})", host, port, e.toString());
+            throw new ServidorChavesIndisponivel(host, port, e);
+        }
+    }
+
+    // Resolve a chave no servidor de chaves -> [idInstituicao, numeroConta], ou null.
+    public String[] resolverChave(String valor) {
+        log.info("[RMI] -> {}:{} lookup 'ConsultaChave'; resolverChave(valor={})", host, port, valor);
+        try {
+            ConsultaChaveInterface consulta = (ConsultaChaveInterface) registry().lookup("ConsultaChave");
+            String[] r = consulta.resolverChave(valor);
+            log.info("[RMI] <- resolverChave = {}", r == null ? "não encontrada" : (r[0] + " · " + r[1]));
+            return r;
         } catch (Exception e) {
             log.error("[RMI] falha ao falar com {}:{} ({})", host, port, e.toString());
             throw new ServidorChavesIndisponivel(host, port, e);

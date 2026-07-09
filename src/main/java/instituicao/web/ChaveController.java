@@ -1,5 +1,6 @@
 package instituicao.web;
 
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -22,6 +23,7 @@ import instituicao.chaves.ServidorChavesIndisponivel;
 import instituicao.chaves.TipoChave;
 import instituicao.seguranca.SessaoService;
 import instituicao.web.dto.ChaveResponse;
+import instituicao.web.dto.ChavesResponse;
 import instituicao.web.dto.ErroResponse;
 import instituicao.web.dto.RegistrarChaveRequest;
 
@@ -147,6 +149,33 @@ public class ChaveController {
                             .body(new ErroResponse("Servidor de chaves recusou a troca (status " + status + ")"));
                 }
             };
+        } catch (ServidorChavesIndisponivel e) {
+            log.error("[CHAVE] -> 502 servidor de chaves indisponível: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                    .body(new ErroResponse("Servidor de chaves indisponível"));
+        }
+    }
+
+    // Lista as chaves atreladas a esta conta (exige login).
+    @GetMapping("/contas/{numero}/chaves")
+    public ResponseEntity<?> listar(@PathVariable String numero,
+                                    @RequestHeader(value = "Authorization", required = false) String authorization) {
+        log.info("[CHAVE] GET /contas/{}/chaves", numero);
+
+        if (!sessoes.autorizadoHeader(authorization, numero)) {
+            log.warn("[CHAVE] -> 401 acesso negado à conta {}", numero);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new ErroResponse("Não autenticado para esta conta"));
+        }
+        if (banco.recuperarConta(numero) == null) {
+            log.warn("[CHAVE] -> 404 conta {} inexistente", numero);
+            return ResponseEntity.notFound().build();
+        }
+
+        try {
+            List<String> lista = chaves.chavesDaConta(idInstituicao, numero);
+            log.info("[CHAVE] conta {} tem {} chave(s)", numero, lista.size());
+            return ResponseEntity.ok(new ChavesResponse(numero, lista));
         } catch (ServidorChavesIndisponivel e) {
             log.error("[CHAVE] -> 502 servidor de chaves indisponível: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_GATEWAY)

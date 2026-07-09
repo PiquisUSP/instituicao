@@ -16,6 +16,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
+import estruturas.db.BancoDeDados;
+import instituicao.consulta.ConsultaContaService;
 import pubsub.EventoLider;
 import pubsub.RegistroInstituicaoInterface;
 import raft.NoInstituicao;
@@ -41,6 +43,7 @@ public class DescobertaLiderConfig {
     private final String bcHost;
     private final int bcPorta;
     private final ObjectProvider<NoInstituicao> noProvider;
+    private final BancoDeDados banco;
 
     private PublicadorLiderService publicador;
     private Registry registry;
@@ -55,7 +58,8 @@ public class DescobertaLiderConfig {
             @Value("${descoberta.endereco-publico:}") String enderecoPublico,
             @Value("${bc.host:127.0.0.1}") String bcHost,
             @Value("${bc.port:1200}") int bcPorta,
-            ObjectProvider<NoInstituicao> noProvider) {
+            ObjectProvider<NoInstituicao> noProvider,
+            BancoDeDados banco) {
         this.idInstituicao = idInstituicao;
         this.porta = porta;
         this.descobertaHost = descobertaHost;
@@ -63,6 +67,7 @@ public class DescobertaLiderConfig {
         this.bcHost = bcHost;
         this.bcPorta = bcPorta;
         this.noProvider = noProvider;
+        this.banco = banco;
     }
 
     @PostConstruct
@@ -70,7 +75,8 @@ public class DescobertaLiderConfig {
         publicador = new PublicadorLiderService(porta);
         registry = LocateRegistry.createRegistry(porta);
         registry.rebind(NOME_DESCOBERTA, publicador);
-        log.info("[PUBSUB] serviço '{}' publicado na porta RMI {} (instituicao {}, endereço público {})",
+        registry.rebind("ConsultaConta", new ConsultaContaService(banco, porta));
+        log.info("[PUBSUB] serviços '{}' e 'ConsultaConta' publicados na porta RMI {} (instituicao {}, endereço público {})",
                 NOME_DESCOBERTA, porta, idInstituicao, enderecoPublico);
     }
 
