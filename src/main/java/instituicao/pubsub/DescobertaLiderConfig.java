@@ -4,6 +4,8 @@ import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,7 +22,9 @@ import estruturas.db.BancoDeDados;
 import instituicao.consulta.ConsultaContaService;
 import pubsub.EventoLider;
 import pubsub.RegistroInstituicaoInterface;
+import raft.AplicadorDeContas;
 import raft.NoInstituicao;
+import rmi.services.TransacaoService;
 
 // Descoberta de líder, lado da instituição:
 //  - sobe um registry RMI (descoberta.port) com o PublicadorLiderService;
@@ -40,10 +44,11 @@ public class DescobertaLiderConfig {
     private final int porta;
     private final String descobertaHost;
     private final String enderecoPublico;
-    private final String bcHost;
+    private final List<String> bcHosts;
     private final int bcPorta;
     private final ObjectProvider<NoInstituicao> noProvider;
     private final BancoDeDados banco;
+    private final AplicadorDeContas aplicador;
 
     private PublicadorLiderService publicador;
     private Registry registry;
@@ -56,18 +61,37 @@ public class DescobertaLiderConfig {
             @Value("${descoberta.port:9001}") int porta,
             @Value("${descoberta.host:127.0.0.1}") String descobertaHost,
             @Value("${descoberta.endereco-publico:}") String enderecoPublico,
-            @Value("${bc.host:127.0.0.1}") String bcHost,
+            @Value("${bc.hosts:${bc.host:127.0.0.1}}") String bcHostsCsv,
             @Value("${bc.port:1200}") int bcPorta,
             ObjectProvider<NoInstituicao> noProvider,
-            BancoDeDados banco) {
+            BancoDeDados banco,
+            AplicadorDeContas aplicador) {
         this.idInstituicao = idInstituicao;
         this.porta = porta;
         this.descobertaHost = descobertaHost;
         this.enderecoPublico = enderecoPublico.isBlank() ? descobertaHost + ":" + porta : enderecoPublico;
-        this.bcHost = bcHost;
+        this.bcHosts = parseHosts(bcHostsCsv);
         this.bcPorta = bcPorta;
         this.noProvider = noProvider;
         this.banco = banco;
+        this.aplicador = aplicador;
+    }
+
+    // "host1,host2,..." -> lista (default único host local se vazio).
+    private static List<String> parseHosts(String csv) {
+        List<String> out = new ArrayList<>();
+        if (csv != null) {
+            for (String s : csv.split(",")) {
+                String t = s.trim();
+                if (!t.isEmpty()) {
+                    out.add(t);
+                }
+            }
+        }
+        if (out.isEmpty()) {
+            out.add("127.0.0.1");
+        }
+        return out;
     }
 
     @PostConstruct
@@ -76,30 +100,33 @@ public class DescobertaLiderConfig {
         registry = LocateRegistry.createRegistry(porta);
         registry.rebind(NOME_DESCOBERTA, publicador);
         registry.rebind("ConsultaConta", new ConsultaContaService(banco, porta));
-        log.info("[PUBSUB] serviços '{}' e 'ConsultaConta' publicados na porta RMI {} (instituicao {}, endereço público {})",
+        registry.rebind("Transacao", new TransacaoService(aplicador, banco, idInstituicao, porta));
+        log.info("[PUBSUB] serviços '{}', 'ConsultaConta' e 'Transacao' publicados na porta RMI {} (instituicao {}, endereço público {})",
                 NOME_DESCOBERTA, porta, idInstituicao, enderecoPublico);
     }
 
     // Registra no BC; retenta sempre (idempotente), então sobrevive a reinício do BC.
     @Scheduled(fixedDelay = 3000)
     void registrarNoBancoCentral() {
-        try {
-            Registry bcRegistry = LocateRegistry.getRegistry(bcHost, bcPorta);
-            RegistroInstituicaoInterface registro =
-                    (RegistroInstituicaoInterface) bcRegistry.lookup(NOME_REGISTRO);
-            registro.registrar(idInstituicao, descobertaHost, porta);
-            if (!registradoNoBc) {
-                log.info("[REGISTRO] registrado no Banco Central {}:{} como {} ({}:{})",
-                        bcHost, bcPorta, idInstituicao, descobertaHost, porta);
-                registradoNoBc = true;
+        int ok = 0;
+        for (String bcHost : bcHosts) {
+            try {
+                Registry bcRegistry = LocateRegistry.getRegistry(bcHost, bcPorta);
+                RegistroInstituicaoInterface registro =
+                        (RegistroInstituicaoInterface) bcRegistry.lookup(NOME_REGISTRO);
+                registro.registrar(idInstituicao, descobertaHost, porta);
+                ok++;
+            } catch (Exception e) {
+                // esse nó do BC ainda não no ar; segue tentando os outros.
             }
-        } catch (Exception e) {
-            if (registradoNoBc) {
-                log.warn("[REGISTRO] contato com o Banco Central perdido ({}); re-registrando...",
-                        e.getClass().getSimpleName());
-                registradoNoBc = false;
-            }
-            // BC ainda não no ar: silencioso até subir.
+        }
+        if (ok > 0 && !registradoNoBc) {
+            log.info("[REGISTRO] registrado no Banco Central ({} de {} nó(s)) como {} ({}:{})",
+                    ok, bcHosts.size(), idInstituicao, descobertaHost, porta);
+            registradoNoBc = true;
+        } else if (ok == 0 && registradoNoBc) {
+            log.warn("[REGISTRO] contato com o Banco Central perdido; re-registrando...");
+            registradoNoBc = false;
         }
     }
 

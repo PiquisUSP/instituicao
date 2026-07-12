@@ -8,7 +8,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.ratis.proto.RaftProtos.LogEntryProto;
@@ -28,8 +27,8 @@ import org.apache.ratis.statemachine.impl.SingleFileSnapshotInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import estruturas.conta.ContaBancaria;
 import estruturas.db.BancoDeDados;
+import estruturas.db.EstadoBanco;
 
 // Máquina de estados replicada. O Ratis garante que todos os nós apliquem as mesmas
 // entradas na mesma ordem; cada entrada commitada vira uma conta no banco. Como a
@@ -106,10 +105,11 @@ public class InstituicaoStateMachine extends BaseStateMachine {
     @Override
     public long takeSnapshot() {
         final TermIndex ultimo = getLastAppliedTermIndex();
-        final Map<String, ContaBancaria> copia = db.snapshot();
+        final EstadoBanco copia = db.snapshot();
 
         final File arquivo = storage.getSnapshotFile(ultimo.getTerm(), ultimo.getIndex());
-        LOG.info("[takeSnapshot] gravando snapshot {} ({} contas)", arquivo.getName(), copia.size());
+        LOG.info("[takeSnapshot] gravando snapshot {} ({} contas, {} pendentes)",
+                arquivo.getName(), copia.contas().size(), copia.pendentes().size());
 
         try (ObjectOutputStream out = new ObjectOutputStream(
                 new BufferedOutputStream(new FileOutputStream(arquivo)))) {
@@ -122,7 +122,6 @@ public class InstituicaoStateMachine extends BaseStateMachine {
     }
 
     // Recarrega o banco do snapshot mais recente (se houver).
-    @SuppressWarnings("unchecked")
     private long carregarSnapshot(SingleFileSnapshotInfo snapshot) throws IOException {
         if (snapshot == null) {
             return RaftLog.INVALID_LOG_INDEX;
@@ -135,11 +134,11 @@ public class InstituicaoStateMachine extends BaseStateMachine {
         final TermIndex ultimo = SimpleStateMachineStorage.getTermIndexFromSnapshotFile(arquivo);
         try (ObjectInputStream in = new ObjectInputStream(
                 new BufferedInputStream(new FileInputStream(arquivo)))) {
-            Map<String, ContaBancaria> dados = (Map<String, ContaBancaria>) in.readObject();
+            EstadoBanco dados = (EstadoBanco) in.readObject();
             db.restaurar(dados);
             setLastAppliedTermIndex(ultimo);
-            LOG.info("[carregarSnapshot] restaurado do snapshot index={} ({} contas)",
-                    ultimo.getIndex(), dados.size());
+            LOG.info("[carregarSnapshot] restaurado do snapshot index={} ({} contas, {} pendentes)",
+                    ultimo.getIndex(), dados.contas().size(), dados.pendentes().size());
         } catch (ClassNotFoundException e) {
             throw new IOException("Snapshot corrompido: " + arquivo, e);
         }

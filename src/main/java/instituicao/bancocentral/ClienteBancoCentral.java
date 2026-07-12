@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 
 import consulta.ConsultaDestinoInterface;
 import consulta.RespostaConta;
+import transacao.TransferenciaInterface;
 
 // Cliente RMI do Banco Central. Resolve o destino de uma transferência: o BC roteia
 // a consulta para a instituição de destino e devolve o titular.
@@ -36,6 +37,17 @@ public class ClienteBancoCentral {
             RespostaConta r = bc.consultarConta(idInstituicao, numeroConta);
             log.info("[BC] <- existe={}, nome={}", r.existe, r.nome);
             return r;
+        } catch (Exception e) {
+            log.error("[BC] falha ao falar com o Banco Central {}:{} ({})", host, porta, e.toString());
+            throw new BancoCentralIndisponivel(host, porta, e);
+        }
+    }
+
+    public boolean solicitaTransacao(String idInstituicaoOrigem, String contaOrigem, String idInstituicaoDestino, String contaDestino, long valorCentavos) {
+        try {
+            Registry reg = LocateRegistry.getRegistry(host, porta);
+            TransferenciaInterface bc = (TransferenciaInterface) reg.lookup("Transferencia");
+            return bc.solicitaTransacao(idInstituicaoOrigem, contaOrigem, idInstituicaoDestino, contaDestino, valorCentavos);
         } catch (Exception e) {
             log.error("[BC] falha ao falar com o Banco Central {}:{} ({})", host, porta, e.toString());
             throw new BancoCentralIndisponivel(host, porta, e);

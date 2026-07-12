@@ -15,7 +15,6 @@ import estruturas.db.BancoDeDados;
 // escrever no grupo) e o BancoDeDados replicado. O mesmo banco é usado pela
 // StateMachine (escritas via Raft) e pelas leituras REST locais.
 public class NoInstituicao implements AutoCloseable {
-
     private final String id;
     private final BancoDeDados db;
     private final RaftServer raftServer;
@@ -29,7 +28,7 @@ public class NoInstituicao implements AutoCloseable {
         }
 
         this.id = id;
-        this.db = new BancoDeDados();
+        this.db = new BancoDeDados(id);
 
         RaftGroup grupo = ClusterConfig.grupo();
 

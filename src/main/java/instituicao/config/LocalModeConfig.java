@@ -21,7 +21,7 @@ public class LocalModeConfig {
     @Bean
     public BancoDeDados banco() {
         log.info("[CONFIG] modo LOCAL (processo único, sem consenso Raft)");
-        return new BancoDeDados();
+        return new BancoDeDados("INST-001");
     }
 
     @Bean

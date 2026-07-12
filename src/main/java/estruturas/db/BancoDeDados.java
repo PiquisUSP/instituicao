@@ -1,7 +1,6 @@
 package estruturas.db;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.slf4j.Logger;
@@ -9,6 +8,7 @@ import org.slf4j.LoggerFactory;
 
 import estruturas.conta.ContaBancaria;
 import estruturas.db.exceptions.conta.ContaJaRegistrada;
+import estruturas.transacao.TransacaoPendente;
 
 // Banco local da instituição: contas indexadas pelo número (String), criação e
 // consulta em O(1). É o mesmo objeto usado pela StateMachine (escritas via Raft) e
@@ -19,8 +19,13 @@ public class BancoDeDados {
     private static final Logger LOG = LoggerFactory.getLogger(BancoDeDados.class);
 
     private final ConcurrentHashMap<String, ContaBancaria> contas = new ConcurrentHashMap<>();
+    // Transações 2PC preparadas e ainda sem COMMIT/ABORT. Também replicado via Raft.
+    private final ConcurrentHashMap<UUID, TransacaoPendente> pendentes = new ConcurrentHashMap<>();
 
-    public BancoDeDados() {
+    public String id;
+
+    public BancoDeDados(String idInstituicao) {
+        this.id = idInstituicao;
         this.carregarDados();
     }
 
@@ -48,16 +53,33 @@ public class BancoDeDados {
         return numeroConta != null && this.contas.containsKey(numeroConta);
     }
 
-    // --- snapshot (persistência do estado da StateMachine em disco) ---
+    // --- transações pendentes (2PC) ---
 
-    public Map<String, ContaBancaria> snapshot() {
-        return new HashMap<>(this.contas);
+    public void registrarPendente(TransacaoPendente pendente) {
+        this.pendentes.put(pendente.getId(), pendente);
+        LOG.info("[DB] transação pendente registrada {} (total pendentes={})", pendente, this.pendentes.size());
     }
 
-    public void restaurar(Map<String, ContaBancaria> dados) {
+    public TransacaoPendente recuperarPendente(UUID id) {
+        return id == null ? null : this.pendentes.get(id);
+    }
+
+    public void removerTransacaoPendente(TransacaoPendente pendente) {
+        this.pendentes.remove(pendente.getId());
+    }
+
+    // --- snapshot (persistência do estado da StateMachine em disco) ---
+
+    public EstadoBanco snapshot() {
+        return new EstadoBanco(this.contas, this.pendentes);
+    }
+
+    public void restaurar(EstadoBanco estado) {
         this.contas.clear();
-        if (dados != null) {
-            this.contas.putAll(dados);
+        this.pendentes.clear();
+        if (estado != null) {
+            this.contas.putAll(estado.contas());
+            this.pendentes.putAll(estado.pendentes());
         }
     }
 }

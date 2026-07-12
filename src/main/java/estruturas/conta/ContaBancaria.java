@@ -24,10 +24,14 @@ public class ContaBancaria implements Serializable {
     private List<Favorito> favoritos = new CopyOnWriteArrayList<>();
 
     public ContaBancaria(String numeroConta, String cpf, String nome, String senhaHash) {
+        this(numeroConta, cpf, nome, senhaHash, 0L);
+    }
+
+    public ContaBancaria(String numeroConta, String cpf, String nome, String senhaHash, long saldoInicialCentavos) {
         this.numeroConta = new NumeroConta(numeroConta);
         this.cpf = new CPF(cpf);
         this.nome = nome;
-        this.saldo = new Saldo(0L);
+        this.saldo = new Saldo(saldoInicialCentavos);
         this.extrato = new Extrato();
         this.senhaHash = senhaHash;
     }

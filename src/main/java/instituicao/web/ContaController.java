@@ -19,6 +19,8 @@ import org.springframework.web.bind.annotation.RestController;
 import estruturas.CPF;
 import estruturas.conta.ContaBancaria;
 import estruturas.db.BancoDeDados;
+import instituicao.bancocentral.BancoCentralIndisponivel;
+import instituicao.bancocentral.ClienteBancoCentral;
 import instituicao.seguranca.SessaoService;
 import instituicao.web.dto.ContaResponse;
 import instituicao.web.dto.CriarContaRequest;
@@ -26,8 +28,11 @@ import instituicao.web.dto.ErroResponse;
 import instituicao.web.dto.ExtratoResponse;
 import instituicao.web.dto.SaldoResponse;
 import instituicao.web.dto.TransacaoResponse;
+import instituicao.web.dto.TransferirRequest;
 import raft.AplicadorDeContas;
 import raft.ComandoCriarConta;
+import raft.NoInstituicao;
+import rmi.services.TransacaoService;
 
 // API REST de contas. POST valida, hasheia a senha, monta o comando e entrega ao
 // aplicador (Raft ou local). Saldo e extrato exigem login (Bearer token).
@@ -41,16 +46,22 @@ public class ContaController {
     private final BancoDeDados banco;
     private final PasswordEncoder encoder;
     private final SessaoService sessoes;
+    private final ClienteBancoCentral clienteBancoCentral;
 
     public ContaController(AplicadorDeContas aplicador, BancoDeDados banco,
-                           PasswordEncoder encoder, SessaoService sessoes) {
+                           PasswordEncoder encoder, SessaoService sessoes, ClienteBancoCentral clienteBancoCentral) {
         this.aplicador = aplicador;
         this.banco = banco;
         this.encoder = encoder;
         this.sessoes = sessoes;
+        this.clienteBancoCentral = clienteBancoCentral;
     }
 
-    @PostMapping
+    public String idInstituicao() {
+        return this.banco.id;
+    }
+
+    @PostMapping()
     public ResponseEntity<?> criar(@RequestBody CriarContaRequest req) {
         log.info("[CONTA] POST /contas recebido (cpf={})", req == null ? null : req.cpf());
 
@@ -81,7 +92,12 @@ public class ContaController {
         log.info("[CONTA] validado; numeroConta={} ({}); senha hasheada; submetendo escrita...",
                 numero, numeroGerado ? "gerado" : "informado");
 
-        int status = aplicador.registrar(new ComandoCriarConta(numero, cpf.getValor(), req.nome().trim(), senhaHash));
+        // Fundo inicial aleatório (centavos) para dar pra testar transferências de cara.
+        // Gerado aqui, antes do Raft, para todos os nós aplicarem o mesmo valor.
+        long saldoInicial = ThreadLocalRandom.current().nextLong(1_000, 100_001);
+        log.info("[CONTA] saldo inicial sorteado: {} centavos", saldoInicial);
+        int status = aplicador.registrar(
+                new ComandoCriarConta(numero, cpf.getValor(), req.nome().trim(), senhaHash, saldoInicial));
 
         return switch (status) {
             case 200 -> {
@@ -169,4 +185,26 @@ public class ContaController {
         long n = ThreadLocalRandom.current().nextLong(1, 100_000_000L);
         return String.format("%08d", n);
     }
+
+    @PostMapping("/{numero}/transferir")
+    public ResponseEntity<?> transferir(@PathVariable String numero, @RequestBody TransferirRequest request, @RequestHeader(value = "Authorization", required = false) String authorization){
+        ResponseEntity<?> negado = exigirAutenticacao(numero, authorization); 
+        if (negado != null) {
+            return negado;
+        }
+
+        ContaBancaria contaOrigem = banco.recuperarConta(numero);
+
+        try {
+            boolean sucesso = clienteBancoCentral.solicitaTransacao(idInstituicao(), contaOrigem.getNumeroConta().getValor(), request.idInstituicaoDestino(), request.contaDestino(), request.valorCentavos());
+            if(sucesso){
+                return ResponseEntity.status(200).build();
+            }
+            else{
+                return ResponseEntity.status(500).build();
+            }
+        }catch(BancoCentralIndisponivel ex) {
+            return ResponseEntity.status(502).build();
+        }
+    } 
 }

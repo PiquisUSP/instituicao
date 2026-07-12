@@ -15,12 +15,18 @@ public final class ComandoCriarConta implements Comando {
     private final String cpf;
     private final String nome;
     private final String senhaHash;
+    private final long saldoInicialCentavos;
 
     public ComandoCriarConta(String numeroConta, String cpf, String nome, String senhaHash) {
+        this(numeroConta, cpf, nome, senhaHash, 0L);
+    }
+
+    public ComandoCriarConta(String numeroConta, String cpf, String nome, String senhaHash, long saldoInicialCentavos) {
         this.numeroConta = numeroConta;
         this.cpf = cpf;
         this.nome = nome;
         this.senhaHash = senhaHash;
+        this.saldoInicialCentavos = saldoInicialCentavos;
     }
 
     @Override
@@ -34,7 +40,7 @@ public final class ComandoCriarConta implements Comando {
     }
 
     public ContaBancaria reconstruirConta() {
-        return new ContaBancaria(numeroConta, cpf, nome, senhaHash);
+        return new ContaBancaria(numeroConta, cpf, nome, senhaHash, saldoInicialCentavos);
     }
 
     public String getNumeroConta() {
