@@ -5,6 +5,7 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -47,18 +48,20 @@ public class ContaController {
     private final PasswordEncoder encoder;
     private final SessaoService sessoes;
     private final ClienteBancoCentral clienteBancoCentral;
+    private String idInstituicao;
 
     public ContaController(AplicadorDeContas aplicador, BancoDeDados banco,
-                           PasswordEncoder encoder, SessaoService sessoes, ClienteBancoCentral clienteBancoCentral) {
+                           PasswordEncoder encoder, SessaoService sessoes, ClienteBancoCentral clienteBancoCentral, @Value("${instituicao.id:INST-0001}") String idInstituicao) {
         this.aplicador = aplicador;
         this.banco = banco;
         this.encoder = encoder;
         this.sessoes = sessoes;
         this.clienteBancoCentral = clienteBancoCentral;
+        this.idInstituicao = idInstituicao;
     }
 
     public String idInstituicao() {
-        return this.banco.id;
+        return idInstituicao;
     }
 
     @PostMapping()
