@@ -3,7 +3,6 @@ package raft;
 import estruturas.conta.ContaBancaria;
 import estruturas.db.BancoDeDados;
 
-// Remove um favorito da conta do dono, pelo id. 404 se a conta ou o favorito não existem.
 public final class ComandoRemoverFavorito implements Comando {
 
     private static final long serialVersionUID = 1L;

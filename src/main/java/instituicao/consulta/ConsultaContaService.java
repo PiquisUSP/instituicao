@@ -11,8 +11,6 @@ import consulta.RespostaConta;
 import estruturas.conta.ContaBancaria;
 import estruturas.db.BancoDeDados;
 
-// Serviço RMI que o Banco Central chama para saber o titular de uma conta desta
-// instituição. Publicado no mesmo registry da descoberta de líder.
 public class ConsultaContaService extends UnicastRemoteObject implements ConsultaContaInterface {
 
     private static final Logger LOG = LoggerFactory.getLogger(ConsultaContaService.class);
@@ -27,7 +25,7 @@ public class ConsultaContaService extends UnicastRemoteObject implements Consult
     @Override
     public RespostaConta consultarConta(String numeroConta) throws RemoteException {
         ContaBancaria c = banco.recuperarConta(numeroConta);
-        LOG.info("[CONSULTA] Banco Central perguntou pela conta {} -> existe={}", numeroConta, c != null);
+        LOG.info("[CONSULTA] conta {} existe={}", numeroConta, c != null);
         return c == null ? RespostaConta.naoExiste() : RespostaConta.de(c.getNome());
     }
 }

@@ -12,8 +12,6 @@ import pubsub.AssinanteLiderInterface;
 import pubsub.DescobertaLiderInterface;
 import pubsub.EventoLider;
 
-// Publica as trocas de líder desta instituição. O Banco Central chama assinar() para
-// se inscrever; publicar() notifica todos os assinantes quando a liderança muda.
 public class PublicadorLiderService extends UnicastRemoteObject implements DescobertaLiderInterface {
 
     private static final Logger log = LoggerFactory.getLogger(PublicadorLiderService.class);
@@ -28,8 +26,7 @@ public class PublicadorLiderService extends UnicastRemoteObject implements Desco
     @Override
     public EventoLider assinar(AssinanteLiderInterface assinante) throws RemoteException {
         assinantes.add(assinante);
-        log.info("[PUBSUB] novo assinante (Banco Central); total={}; lider atual={}",
-                assinantes.size(), atual);
+        log.info("[PUBSUB] novo assinante (Banco Central), total={}", assinantes.size());
         return atual;
     }
 
@@ -38,17 +35,16 @@ public class PublicadorLiderService extends UnicastRemoteObject implements Desco
         assinantes.remove(assinante);
     }
 
-    // Notifica todos os assinantes (best-effort; remove os que não respondem).
     public void publicar(EventoLider evento) {
         this.atual = evento;
         for (AssinanteLiderInterface a : assinantes) {
             try {
                 a.onLiderAtualizado(evento);
             } catch (RemoteException e) {
-                log.warn("[PUBSUB] assinante inacessível, removendo ({})", e.getClass().getSimpleName());
+                log.warn("[PUBSUB] assinante inacessível, removendo");
                 assinantes.remove(a);
             }
         }
-        log.info("[PUBSUB] evento publicado a {} assinante(s): {}", assinantes.size(), evento);
+        log.info("[PUBSUB] publicado a {} assinante(s)", assinantes.size());
     }
 }

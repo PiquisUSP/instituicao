@@ -12,8 +12,6 @@ import consulta.ConsultaDestinoInterface;
 import consulta.RespostaConta;
 import transacao.TransferenciaInterface;
 
-// Cliente RMI do Banco Central. Resolve o destino de uma transferência: o BC roteia
-// a consulta para a instituição de destino e devolve o titular.
 @Component
 public class ClienteBancoCentral {
 
@@ -30,15 +28,14 @@ public class ClienteBancoCentral {
     }
 
     public RespostaConta consultarConta(String idInstituicao, String numeroConta) {
-        log.info("[BC] -> {}:{} consultarConta({}, {})", host, porta, idInstituicao, numeroConta);
+        log.info("[BC] consultarConta({}, {})", idInstituicao, numeroConta);
         try {
             Registry reg = LocateRegistry.getRegistry(host, porta);
             ConsultaDestinoInterface bc = (ConsultaDestinoInterface) reg.lookup("ConsultaDestino");
             RespostaConta r = bc.consultarConta(idInstituicao, numeroConta);
-            log.info("[BC] <- existe={}, nome={}", r.existe, r.nome);
             return r;
         } catch (Exception e) {
-            log.error("[BC] falha ao falar com o Banco Central {}:{} ({})", host, porta, e.toString());
+            log.error("[BC] falha ao falar com o Banco Central {}:{}", host, porta);
             throw new BancoCentralIndisponivel(host, porta, e);
         }
     }
@@ -49,7 +46,7 @@ public class ClienteBancoCentral {
             TransferenciaInterface bc = (TransferenciaInterface) reg.lookup("Transferencia");
             return bc.solicitaTransacao(idInstituicaoOrigem, contaOrigem, idInstituicaoDestino, contaDestino, valorCentavos);
         } catch (Exception e) {
-            log.error("[BC] falha ao falar com o Banco Central {}:{} ({})", host, porta, e.toString());
+            log.error("[BC] falha ao falar com o Banco Central {}:{}", host, porta);
             throw new BancoCentralIndisponivel(host, porta, e);
         }
     }

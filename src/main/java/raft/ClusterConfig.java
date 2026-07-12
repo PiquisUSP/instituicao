@@ -17,17 +17,11 @@ import org.apache.ratis.protocol.RaftPeer;
 import org.apache.ratis.rpc.SupportedRpcType;
 import org.apache.ratis.server.RaftServerConfigKeys;
 
-// Config estática do cluster da instituição: porta Raft (gRPC) de cada nó e o id do
-// grupo (igual em todos). A porta HTTP fica com o Spring (server.port, por profile).
-// Portas Raft 7001-7003 (diferentes das 6001-6003 do servidor-de-chaves, para os
-// dois clusters coexistirem na mesma máquina). Host: 127.0.0.1 local; em Docker, via
-// RAFT_HOST_N1/N2/N3.
 public final class ClusterConfig {
 
     private ClusterConfig() {
     }
 
-    // Id do grupo Raft — precisa ser idêntico em todos os nós.
     public static final RaftGroupId GROUP_ID =
             RaftGroupId.valueOf(UUID.fromString("9c1e2d3a-5b6f-4a7c-8d9e-0f1a2b3c4d5e"));
 
@@ -84,7 +78,6 @@ public final class ClusterConfig {
 
         RaftServerConfigKeys.setStorageDir(props, Collections.singletonList(diretorioStorage(id)));
 
-        // Snapshot automático a cada 10 entradas (persiste o estado e compacta o log).
         RaftServerConfigKeys.Snapshot.setAutoTriggerEnabled(props, true);
         RaftServerConfigKeys.Snapshot.setAutoTriggerThreshold(props, 10L);
 

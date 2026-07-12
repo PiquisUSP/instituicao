@@ -10,8 +10,6 @@ import estruturas.db.BancoDeDados;
 import raft.AplicadorDeContas;
 import raft.AplicadorLocal;
 
-// Modo local (processo único, sem consenso): escreve direto num banco em memória.
-// Ativo quando instituicao.raft.enabled=false. Útil para dev/teste do endpoint.
 @Configuration
 @ConditionalOnProperty(name = "instituicao.raft.enabled", havingValue = "false")
 public class LocalModeConfig {
@@ -20,7 +18,7 @@ public class LocalModeConfig {
 
     @Bean
     public BancoDeDados banco() {
-        log.info("[CONFIG] modo LOCAL (processo único, sem consenso Raft)");
+        log.info("[CONFIG] modo LOCAL");
         return new BancoDeDados("INST-001");
     }
 

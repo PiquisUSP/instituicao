@@ -4,9 +4,6 @@ import estruturas.conta.ContaBancaria;
 import estruturas.conta.favorito.Favorito;
 import estruturas.db.BancoDeDados;
 
-// Adiciona um favorito à conta do dono. O id do favorito já vem resolvido do
-// controller (determinismo), assim como o destino (instituição, conta, titular) já
-// consultado no Banco Central. Só strings viajam no log.
 public final class ComandoAdicionarFavorito implements Comando {
 
     private static final long serialVersionUID = 1L;

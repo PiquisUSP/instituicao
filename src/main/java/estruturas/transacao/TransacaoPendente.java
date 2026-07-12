@@ -3,11 +3,6 @@ package estruturas.transacao;
 import java.io.Serializable;
 import java.util.UUID;
 
-// Uma transferência 2PC que passou pelo PREPARE e espera COMMIT/ABORT. Guarda o contexto
-// completo (as duas pontas, com instituição) para conseguir lançar o extrato no commit, e
-// marca quais pontas são DESTA instituição (origemLocal/destinoLocal) — o débito/reserva só
-// mexe nas contas locais. O timestamp é gerado no handler (uma vez), não no comando Raft,
-// para ser determinístico em todas as réplicas. Replicada via Raft, sobrevive a queda/eleição.
 public class TransacaoPendente implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -19,8 +14,8 @@ public class TransacaoPendente implements Serializable {
     private final String contaDestino;
     private final long valorCentavos;
     private final long horaEpochMillis;
-    private final boolean origemLocal;   // esta instituição é dona da conta de origem
-    private final boolean destinoLocal;  // ... e/ou da de destino (as duas, se for interna)
+    private final boolean origemLocal;
+    private final boolean destinoLocal;
 
     public TransacaoPendente(UUID id, String idInstOrigem, String contaOrigem, String idInstDestino,
             String contaDestino, long valorCentavos, long horaEpochMillis,

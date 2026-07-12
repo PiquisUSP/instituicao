@@ -8,9 +8,6 @@ import java.io.ObjectOutputStream;
 import java.io.UncheckedIOException;
 import java.util.Base64;
 
-// Serialização dos comandos para viajarem como conteúdo de uma Message do Ratis
-// (bytes Java -> Base64). O mesmo formato serve para qualquer Comando; a StateMachine
-// desserializa para o tipo base e chama aplicar().
 public final class Comandos {
 
     private Comandos() {

@@ -30,11 +30,6 @@ import org.slf4j.LoggerFactory;
 import estruturas.db.BancoDeDados;
 import estruturas.db.EstadoBanco;
 
-// Máquina de estados replicada. O Ratis garante que todos os nós apliquem as mesmas
-// entradas na mesma ordem; cada entrada commitada vira uma conta no banco. Como a
-// operação é determinística, os nós convergem para o mesmo estado.
-// Persistência: log do Raft (o Ratis grava) + snapshots do banco (takeSnapshot),
-// recarregados no boot.
 public class InstituicaoStateMachine extends BaseStateMachine {
 
     private static final Logger LOG = LoggerFactory.getLogger(InstituicaoStateMachine.class);
@@ -78,7 +73,6 @@ public class InstituicaoStateMachine extends BaseStateMachine {
                 .build();
     }
 
-    // Aplica uma entrada já commitada. Roda em todos os nós, na mesma ordem.
     @Override
     public CompletableFuture<Message> applyTransaction(TransactionContext trx) {
         final LogEntryProto entry = trx.getLogEntry();
@@ -96,32 +90,30 @@ public class InstituicaoStateMachine extends BaseStateMachine {
 
         updateLastAppliedTermIndex(entry.getTerm(), entry.getIndex());
 
-        LOG.info("[applyTransaction] index={} {} -> {}", entry.getIndex(), comando, status);
+        LOG.info("[apply] index={} {} -> {}", entry.getIndex(), comando, status);
 
         return CompletableFuture.completedFuture(Message.valueOf(Integer.toString(status)));
     }
 
-    // Grava o estado do banco num snapshot (chamado pelo Ratis de tempos em tempos).
     @Override
     public long takeSnapshot() {
         final TermIndex ultimo = getLastAppliedTermIndex();
         final EstadoBanco copia = db.snapshot();
 
         final File arquivo = storage.getSnapshotFile(ultimo.getTerm(), ultimo.getIndex());
-        LOG.info("[takeSnapshot] gravando snapshot {} ({} contas, {} pendentes)",
+        LOG.info("[snapshot] gravando {} ({} contas, {} pendentes)",
                 arquivo.getName(), copia.contas().size(), copia.pendentes().size());
 
         try (ObjectOutputStream out = new ObjectOutputStream(
                 new BufferedOutputStream(new FileOutputStream(arquivo)))) {
             out.writeObject(copia);
         } catch (IOException e) {
-            LOG.warn("[takeSnapshot] falha ao gravar snapshot {}", arquivo, e);
+            LOG.warn("[snapshot] falha ao gravar {}", arquivo, e);
         }
 
         return ultimo.getIndex();
     }
 
-    // Recarrega o banco do snapshot mais recente (se houver).
     private long carregarSnapshot(SingleFileSnapshotInfo snapshot) throws IOException {
         if (snapshot == null) {
             return RaftLog.INVALID_LOG_INDEX;
@@ -137,7 +129,7 @@ public class InstituicaoStateMachine extends BaseStateMachine {
             EstadoBanco dados = (EstadoBanco) in.readObject();
             db.restaurar(dados);
             setLastAppliedTermIndex(ultimo);
-            LOG.info("[carregarSnapshot] restaurado do snapshot index={} ({} contas, {} pendentes)",
+            LOG.info("[snapshot] restaurado index={} ({} contas, {} pendentes)",
                     ultimo.getIndex(), dados.contas().size(), dados.pendentes().size());
         } catch (ClassNotFoundException e) {
             throw new IOException("Snapshot corrompido: " + arquivo, e);

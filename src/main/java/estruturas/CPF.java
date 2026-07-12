@@ -3,7 +3,6 @@ package estruturas;
 import java.io.Serializable;
 import java.util.Objects;
 
-// Serializable: faz parte da ContaBancaria gravada nos snapshots do Raft.
 public class CPF implements Serializable {
     private static final long serialVersionUID = 1L;
 
@@ -35,7 +34,6 @@ public class CPF implements Serializable {
         }
 
         try {
-            // Cálculo do 1º dígito verificador
             int soma = 0;
             for (int i = 0; i < 9; i++) {
                 int numero = cpfLimpo.charAt(i) - '0';
@@ -44,7 +42,6 @@ public class CPF implements Serializable {
             int peso1 = 11 - (soma % 11);
             int digito1 = (peso1 > 9) ? 0 : peso1;
 
-            // Cálculo do 2º dígito verificador
             soma = 0;
             for (int i = 0; i < 10; i++) {
                 int numero = cpfLimpo.charAt(i) - '0';
@@ -53,7 +50,6 @@ public class CPF implements Serializable {
             int peso2 = 11 - (soma % 11);
             int digito2 = (peso2 > 9) ? 0 : peso2;
 
-            // Verifica se os dígitos calculados conferem com os informados
             int digitoInformado1 = cpfLimpo.charAt(9) - '0';
             int digitoInformado2 = cpfLimpo.charAt(10) - '0';
 

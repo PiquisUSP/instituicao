@@ -11,9 +11,6 @@ import org.apache.ratis.server.storage.RaftStorage;
 
 import estruturas.db.BancoDeDados;
 
-// Um nó do cluster da instituição: junta o RaftServer (consenso), o RaftClient (para
-// escrever no grupo) e o BancoDeDados replicado. O mesmo banco é usado pela
-// StateMachine (escritas via Raft) e pelas leituras REST locais.
 public class NoInstituicao implements AutoCloseable {
     private final String id;
     private final BancoDeDados db;
@@ -32,7 +29,6 @@ public class NoInstituicao implements AutoCloseable {
 
         RaftGroup grupo = ClusterConfig.grupo();
 
-        // Se já tem storage em disco, recupera (restart); senão formata (primeira vez).
         File storageDir = ClusterConfig.diretorioStorage(id);
         boolean temStorage = storageDir.isDirectory()
                 && storageDir.list() != null && storageDir.list().length > 0;
@@ -72,7 +68,6 @@ public class NoInstituicao implements AutoCloseable {
         return id;
     }
 
-    // Se este nó é o líder atual do grupo.
     public boolean isLider() {
         try {
             return raftServer.getDivision(ClusterConfig.GROUP_ID).getInfo().isLeader();

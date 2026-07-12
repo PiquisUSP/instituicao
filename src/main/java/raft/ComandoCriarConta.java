@@ -4,9 +4,6 @@ import estruturas.conta.ContaBancaria;
 import estruturas.db.BancoDeDados;
 import estruturas.db.exceptions.conta.ContaJaRegistrada;
 
-// Comando que vai para o log do Raft e é replicado. Guarda só strings (número, cpf,
-// hash da senha) — nunca a ContaBancaria pronta — para a reconstrução ser igual em
-// todos os nós. O número e o hash já vêm resolvidos do controller (determinismo).
 public final class ComandoCriarConta implements Comando {
 
     private static final long serialVersionUID = 1L;
@@ -61,7 +58,6 @@ public final class ComandoCriarConta implements Comando {
 
     @Override
     public String toString() {
-        // não loga o hash da senha
         return "ComandoCriarConta{numeroConta=" + numeroConta + ", cpf=" + cpf + "}";
     }
 }

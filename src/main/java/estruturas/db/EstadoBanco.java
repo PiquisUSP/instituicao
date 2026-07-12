@@ -8,8 +8,6 @@ import java.util.UUID;
 import estruturas.conta.ContaBancaria;
 import estruturas.transacao.TransacaoPendente;
 
-// Retrato do banco para o snapshot da StateMachine: contas e transações pendentes (2PC)
-// juntas, para o boot restaurar tudo de uma vez.
 public class EstadoBanco implements Serializable {
 
     private static final long serialVersionUID = 1L;

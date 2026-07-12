@@ -2,7 +2,6 @@ package estruturas.conta;
 
 import java.io.Serializable;
 
-// Serializable: faz parte da ContaBancaria retornada por RMI.
 public class NumeroConta implements Serializable {
     private static final long serialVersionUID = 1L;
 
@@ -30,7 +29,7 @@ public class NumeroConta implements Serializable {
         return getClass().hashCode() + valor.hashCode();
     }
 
-    @Override 
+    @Override
     public String toString() {
         return "NumeroConta=" + this.getValor();
     }

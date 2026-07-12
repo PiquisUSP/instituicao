@@ -26,11 +26,6 @@ import raft.AplicadorDeContas;
 import raft.NoInstituicao;
 import rmi.services.TransacaoService;
 
-// Descoberta de líder, lado da instituição:
-//  - sobe um registry RMI (descoberta.port) com o PublicadorLiderService;
-//  - registra-se no Banco Central (modelo híbrido) e reenvia periodicamente (idempotente);
-//  - publica um evento quando este nó vira líder. Em modo local o nó é sempre líder.
-// Desligável com descoberta.enabled=false (usado nos testes).
 @Configuration
 @EnableScheduling
 @ConditionalOnProperty(name = "descoberta.enabled", havingValue = "true", matchIfMissing = true)
@@ -77,7 +72,6 @@ public class DescobertaLiderConfig {
         this.aplicador = aplicador;
     }
 
-    // "host1,host2,..." -> lista (default único host local se vazio).
     private static List<String> parseHosts(String csv) {
         List<String> out = new ArrayList<>();
         if (csv != null) {
@@ -101,11 +95,9 @@ public class DescobertaLiderConfig {
         registry.rebind(NOME_DESCOBERTA, publicador);
         registry.rebind("ConsultaConta", new ConsultaContaService(banco, porta));
         registry.rebind("Transacao", new TransacaoService(aplicador, banco, idInstituicao, porta));
-        log.info("[PUBSUB] serviços '{}', 'ConsultaConta' e 'Transacao' publicados na porta RMI {} (instituicao {}, endereço público {})",
-                NOME_DESCOBERTA, porta, idInstituicao, enderecoPublico);
+        log.info("[PUBSUB] serviços publicados na porta {} (instituicao {})", porta, idInstituicao);
     }
 
-    // Registra no BC; retenta sempre (idempotente), então sobrevive a reinício do BC.
     @Scheduled(fixedDelay = 3000)
     void registrarNoBancoCentral() {
         int ok = 0;
@@ -117,27 +109,24 @@ public class DescobertaLiderConfig {
                 registro.registrar(idInstituicao, descobertaHost, porta);
                 ok++;
             } catch (Exception e) {
-                // esse nó do BC ainda não no ar; segue tentando os outros.
             }
         }
         if (ok > 0 && !registradoNoBc) {
-            log.info("[REGISTRO] registrado no Banco Central ({} de {} nó(s)) como {} ({}:{})",
-                    ok, bcHosts.size(), idInstituicao, descobertaHost, porta);
+            log.info("[REGISTRO] registrado no Banco Central como {}", idInstituicao);
             registradoNoBc = true;
         } else if (ok == 0 && registradoNoBc) {
-            log.warn("[REGISTRO] contato com o Banco Central perdido; re-registrando...");
+            log.warn("[REGISTRO] contato com o Banco Central perdido, re-registrando");
             registradoNoBc = false;
         }
     }
 
-    // Observa a liderança e publica quando este nó vira líder.
     @Scheduled(fixedDelay = 2000)
     void verificarLideranca() {
         boolean lider = ehLider();
         if (lider && !eraLider) {
             termo++;
             EventoLider evento = new EventoLider(idInstituicao, enderecoPublico, termo);
-            log.info("[PUBSUB] este nó tornou-se LÍDER — publicando {}", evento);
+            log.info("[PUBSUB] este nó virou líder, publicando {}", evento);
             publicador.publicar(evento);
         } else if (!lider && eraLider) {
             log.info("[PUBSUB] este nó deixou de ser líder");
@@ -145,7 +134,6 @@ public class DescobertaLiderConfig {
         eraLider = lider;
     }
 
-    // Modo Raft: usa isLider(); modo local (sem o bean NoInstituicao): sempre líder.
     private boolean ehLider() {
         NoInstituicao no = noProvider.getIfAvailable();
         return no == null || no.isLider();
@@ -158,14 +146,12 @@ public class DescobertaLiderConfig {
                 registry.unbind(NOME_DESCOBERTA);
             }
         } catch (Exception ignored) {
-            // encerrando
         }
         try {
             if (publicador != null) {
                 UnicastRemoteObject.unexportObject(publicador, true);
             }
         } catch (Exception ignored) {
-            // encerrando
         }
     }
 }

@@ -6,8 +6,6 @@ import org.apache.ratis.protocol.RaftClientReply;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// Submete o comando ao grupo Raft. O client acha o líder sozinho; o send() só volta
-// depois de replicado e commitado pela maioria, com o status vindo da StateMachine.
 public class AplicadorRaft implements AplicadorDeContas {
 
     private static final Logger LOG = LoggerFactory.getLogger(AplicadorRaft.class);
@@ -21,19 +19,19 @@ public class AplicadorRaft implements AplicadorDeContas {
     @Override
     public int registrar(Comando comando) {
         try {
-            LOG.info("[RAFT] submetendo {} (send -> replica e aguarda commit da maioria)...", comando);
+            LOG.info("[RAFT] submetendo {}", comando);
             RaftClientReply reply = client.io().send(Message.valueOf(Comandos.serializar(comando)));
 
             if (reply.isSuccess()) {
                 String resposta = reply.getMessage().getContent().toStringUtf8().trim();
-                LOG.info("[RAFT] commit confirmado pela maioria; status da StateMachine={}", resposta);
+                LOG.info("[RAFT] commit confirmado, status={}", resposta);
                 return Integer.parseInt(resposta);
             }
 
-            LOG.warn("[RAFT] Raft não confirmou o comando {}: {}", comando, reply);
+            LOG.warn("[RAFT] não confirmou {}: {}", comando, reply);
             return 500;
         } catch (Exception e) {
-            LOG.error("[RAFT] Falha ao replicar comando {} via Raft", comando, e);
+            LOG.error("[RAFT] falha ao replicar {}", comando, e);
             return 500;
         }
     }
